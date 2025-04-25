@@ -208,6 +208,11 @@ class DateSelectDialog(QDialog):
             QCalendarWidget QToolButton#qt_calendar_monthbutton:hover {
                 background-color: #e8eaed;
             }
+            QDateEdit::down-arrow {
+                image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a86e8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
+                width: 18px;
+                height: 18px;
+            }
         """)
 
         # 创建省市中考日期字典
@@ -467,7 +472,7 @@ class DateSelectDialog(QDialog):
                 margin-right: 4px;
             }
             QDateEdit::down-arrow {
-                image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a86e8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3Cline%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3Cline%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3Cline%3E%3C/svg%3E");
+                image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a86e8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
                 width: 18px;
                 height: 18px;
             }
