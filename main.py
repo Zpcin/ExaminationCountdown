@@ -28,6 +28,13 @@ class DateSelectDialog(QDialog):
     """日期选择对话框"""
     def __init__(self, parent=None, exam_mode="中考"):
         super().__init__(parent)
+
+        # 首先设置当前考试模式
+        self.current_exam_mode = exam_mode
+
+        # 然后计算考试年份
+        self.exam_year = self._calculate_exam_year()
+
         self.setWindowTitle(f"设置{exam_mode}日期")
         self.resize(450, 500)  # 增加高度以适应新控件
         self.setStyleSheet("""
@@ -169,26 +176,26 @@ class DateSelectDialog(QDialog):
             }
             /* 上一年按钮样式 */
             QCalendarWidget QToolButton#qt_calendar_prevyear {
-                icon-size: 20px;
+                icon-size: 25px;
                 background-color: #f8f9fa;
                 border-radius: 18px;
                 margin: 3px;
                 padding: 3px;
                 color: #333333;
                 font-weight: bold;
-                qproperty-text: "◄◄";
+                qproperty-text: "◄";
                 qproperty-icon: none;  /* 移除图标，使用文本 */
             }
             /* 下一年按钮样式 */
             QCalendarWidget QToolButton#qt_calendar_nextyear {
-                icon-size: 20px;
+                icon-size: 25px;
                 background-color: #f8f9fa;
                 border-radius: 18px;
                 margin: 3px;
                 padding: 3px;
                 color: #333333;
                 font-weight: bold;
-                qproperty-text: "►►";
+                qproperty-text: "►";
                 qproperty-icon: none;  /* 移除图标，使用文本 */
             }
             QCalendarWidget QToolButton#qt_calendar_prevyear:hover,
@@ -226,109 +233,227 @@ class DateSelectDialog(QDialog):
             }
         """)
 
-        # 创建省市中考日期字典
-        self.zhongkao_dates = {
+        # 创建基础日期字典（月份和日期）
+        self.base_zhongkao_dates = {
             "请选择省份或城市": {"文化课": None},
-            # 直辖市
             "北京": {
-                "文化课": QDate(2025, 6, 24),
-                "地理生物": QDate(2025, 6, 26),
-                "体育考试": QDate(2025, 4, 15)
+                "文化课": (6, 24),
+                "地理生物": (6, 26),
+                "体育考试": (4, 15)
             },
             "上海": {
-                "文化课": QDate(2025, 6, 14),
-                "英语听说": QDate(2025, 5, 17),
-                "理化实验": QDate(2025, 5, 17)
+                "文化课": (6, 14),
+                "英语听说": (5, 17),
+                "理化实验": (5, 17)
             },
             "天津": {
-                "文化课": QDate(2025, 6, 21),
-                "英语听力": QDate(2025, 5, 24)
+                "文化课": (6, 21),
+                "英语听力": (5, 24)
             },
-            "重庆": {"文化课": QDate(2025, 6, 12)},
-            # 华北及东北地区
-            "河北": {"文化课": QDate(2025, 6, 21)},
-            "山西": {"文化课": QDate(2025, 6, 20)},
-            "内蒙古-呼和浩特": {"文化课": QDate(2025, 6, 25)},
-            "内蒙古-赤峰": {"文化课": QDate(2025, 6, 26)},
-            "辽宁": {"文化课": QDate(2025, 6, 21)},
-            "吉林-初三": {"文化课": QDate(2025, 6, 27)},
-            "吉林-初二": {"地理生物": QDate(2025, 6, 30)},
-            "黑龙江-哈尔滨": {"文化课": QDate(2025, 6, 25)},
-            "黑龙江-绥化": {"文化课": QDate(2025, 6, 25)},
-            # 华东地区
-            "江苏-南京": {"文化课": QDate(2025, 6, 17)},
-            "江苏-宿迁": {"文化课": QDate(2025, 6, 15)},
-            "江苏-连云港": {"文化课": QDate(2025, 6, 14)},
-            "浙江": {"文化课": QDate(2025, 6, 21)},
-            "浙江-杭州": {"文化课": QDate(2025, 6, 18)},
-            "山东-济南": {"文化课": QDate(2025, 6, 13)},
-            "山东-淄博": {"文化课": QDate(2025, 6, 14)},
-            "安徽": {"文化课": QDate(2025, 6, 14)},
-            "福建": {"文化课": QDate(2025, 6, 19)},
-            "江西": {"文化课": QDate(2025, 6, 16)},
-            # 华中及华南地区
-            "河南": {"文化课": QDate(2025, 6, 22)},
-            "湖北-武汉": {"文化课": QDate(2025, 6, 20)},
-            "湖北-荆州": {"文化课": QDate(2025, 6, 20)},
-            "湖南": {"文化课": QDate(2025, 6, 18)},
-            "广东-深圳": {"文化课": QDate(2025, 6, 26)},
-            "广东-广州": {"文化课": QDate(2025, 6, 30)},
-            "广西": {"文化课": QDate(2025, 6, 24)},
-            "海南": {"文化课": QDate(2025, 6, 25)},
-            # 西南及西北地区
-            "四川-成都": {"文化课": QDate(2025, 6, 13)},
-            "四川-凉山": {"文化课": QDate(2025, 6, 13)},
-            "云南": {"文化课": QDate(2025, 6, 16)},
-            "贵州": {"文化课": QDate(2025, 6, 21)},
-            "西藏": {"文化课": QDate(2025, 7, 3)},
-            "陕西": {"文化课": QDate(2025, 6, 22)},
-            "甘肃": {"文化课": QDate(2025, 6, 16)},
-            "青海": {"文化课": QDate(2025, 6, 16)},
-            "宁夏": {"文化课": QDate(2025, 6, 28)},
-            "新疆": {"文化课": QDate(2025, 6, 22)},
-        }
-        
-        # 创建省市高考日期字典
-        self.gaokao_dates = {
-            "请选择省份或城市": {"统一科目": None},
-            # 传统文理分科省份
-            "新疆": {"统一科目": QDate(2025, 6, 7), "文理综合": QDate(2025, 6, 8), "外语": QDate(2025, 6, 8)},
-            "西藏": {"统一科目": QDate(2025, 6, 7), "文理综合": QDate(2025, 6, 8), "外语": QDate(2025, 6, 8), "藏语文": QDate(2025, 6, 9)},
-            # "3+1+2"新高考模式省份
-            "广东": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "江苏": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "河北": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "湖南": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "重庆": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "辽宁": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8), "朝鲜语文": QDate(2025, 6, 10)},
-            "黑龙江": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "江西": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            # "3+3"新高考模式省份
-            "北京": {"统一科目": QDate(2025, 6, 7), "等级考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "天津": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "上海": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8), "外语听说": QDate(2025, 6, 9)},
-            "浙江": {"统一科目": QDate(2025, 6, 7), "技术": QDate(2025, 6, 8), "外语": QDate(2025, 6, 8), "选考科目": QDate(2025, 6, 9)},
-            "山东": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "海南": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            # 其他省份默认按"3+1+2"模式
-            "安徽": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "福建": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "甘肃": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "贵州": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "河南": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "湖北": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "吉林": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "内蒙古": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8), "蒙古语文": QDate(2025, 6, 10)},
-            "宁夏": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "青海": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "陕西": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "四川": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "云南": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
-            "广西": {"统一科目": QDate(2025, 6, 7), "选考科目": QDate(2025, 6, 9), "外语": QDate(2025, 6, 8)},
+            "重庆": {"文化课": (6, 12)},
+            "河北": {"文化课": (6, 21)},
+            "山西": {"文化课": (6, 20)},
+            "内蒙古-呼和浩特": {"文化课": (6, 25)},
+            "内蒙古-赤峰": {"文化课": (6, 26)},
+            "辽宁": {"文化课": (6, 21)},
+            "吉林-初三": {"文化课": (6, 27)},
+            "吉林-初二": {"地理生物": (6, 30)},
+            "黑龙江-哈尔滨": {"文化课": (6, 25)},
+            "黑龙江-绥化": {"文化课": (6, 25)},
+            "江苏-南京": {"文化课": (6, 17)},
+            "江苏-宿迁": {"文化课": (6, 15)},
+            "江苏-连云港": {"文化课": (6, 14)},
+            "浙江": {"文化课": (6, 21)},
+            "浙江-杭州": {"文化课": (6, 18)},
+            "山东-济南": {"文化课": (6, 13)},
+            "山东-淄博": {"文化课": (6, 14)},
+            "安徽": {"文化课": (6, 14)},
+            "福建": {"文化课": (6, 19)},
+            "江西": {"文化课": (6, 16)},
+            "河南": {"文化课": (6, 22)},
+            "湖北-武汉": {"文化课": (6, 20)},
+            "湖北-荆州": {"文化课": (6, 20)},
+            "湖南": {"文化课": (6, 18)},
+            "广东-深圳": {"文化课": (6, 26)},
+            "广东-广州": {"文化课": (6, 30)},
+            "广西": {"文化课": (6, 24)},
+            "海南": {"文化课": (6, 25)},
+            "四川-成都": {"文化课": (6, 13)},
+            "四川-凉山": {"文化课": (6, 13)},
+            "云南": {"文化课": (6, 16)},
+            "贵州": {"文化课": (6, 21)},
+            "西藏": {"文化课": (7, 3)},
+            "陕西": {"文化课": (6, 22)},
+            "甘肃": {"文化课": (6, 16)},
+            "青海": {"文化课": (6, 16)},
+            "宁夏": {"文化课": (6, 28)},
+            "新疆": {"文化课": (6, 22)},
         }
 
+        self.base_gaokao_dates = {
+            "请选择省份或城市": {"统一科目": None},
+            "新疆": {
+                "统一科目": (6, 7),
+                "文理综合": (6, 8),
+                "外语": (6, 8)
+            },
+            "西藏": {
+                "统一科目": (6, 7),
+                "文理综合": (6, 8),
+                "外语": (6, 8),
+                "藏语文": (6, 9)
+            },
+            "广东": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "江苏": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "河北": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "湖南": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "重庆": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "辽宁": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8),
+                "朝鲜语文": (6, 10)
+            },
+            "黑龙江": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "江西": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "北京": {
+                "统一科目": (6, 7),
+                "等级考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "天津": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "上海": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8),
+                "外语听说": (6, 9)
+            },
+            "浙江": {
+                "统一科目": (6, 7),
+                "技术": (6, 8),
+                "外语": (6, 8),
+                "选考科目": (6, 9)
+            },
+            "山东": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "海南": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "安徽": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "福建": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "甘肃": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "贵州": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "河南": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "湖北": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "吉林": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "内蒙古": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8),
+                "蒙古语文": (6, 10)
+            },
+            "宁夏": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "青海": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "陕西": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "四川": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "云南": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+            "广西": {
+                "统一科目": (6, 7),
+                "选考科目": (6, 9),
+                "外语": (6, 8)
+            },
+        }
+
+        # 转换基础日期为完整的 QDate 对象
+        self.zhongkao_dates = self._convert_to_full_dates(self.base_zhongkao_dates)
+        self.gaokao_dates = self._convert_to_full_dates(self.base_gaokao_dates)
+
         # 当前激活的考试类型
-        self.current_exam_mode = exam_mode
         self.exam_dates = self.zhongkao_dates if exam_mode == "中考" else self.gaokao_dates
 
         layout = QVBoxLayout(self)
@@ -345,25 +470,25 @@ class DateSelectDialog(QDialog):
         exam_type_frame = QFrame()
         exam_type_frame.setStyleSheet("background-color: #f8f9fa; border-radius: 8px; padding: 10px;")
         exam_type_layout = QHBoxLayout(exam_type_frame)
-        
+
         exam_type_label = QLabel("考试类型:")
         exam_type_label.setStyleSheet("font-weight: bold;")
         exam_type_layout.addWidget(exam_type_label)
-        
+
         self.exam_type_group = QButtonGroup(self)
-        
+
         self.zhongkao_radio = QRadioButton("中考")
         self.zhongkao_radio.setChecked(exam_mode == "中考")
         self.zhongkao_radio.toggled.connect(self.on_exam_type_changed)
         self.exam_type_group.addButton(self.zhongkao_radio)
         exam_type_layout.addWidget(self.zhongkao_radio)
-        
+
         self.gaokao_radio = QRadioButton("高考")
         self.gaokao_radio.setChecked(exam_mode == "高考")
         self.gaokao_radio.toggled.connect(self.on_exam_type_changed)
         self.exam_type_group.addButton(self.gaokao_radio)
         exam_type_layout.addWidget(self.gaokao_radio)
-        
+
         layout.addWidget(exam_type_frame)
 
         # 创建标签页控件来分隔不同的选择方式
@@ -401,15 +526,16 @@ class DateSelectDialog(QDialog):
         region_layout.addWidget(province_label)
 
         self.province_combo = QComboBox()
+        # 修复类型错误：将dict_keys转换为列表
         self.province_combo.addItems(list(self.exam_dates.keys()))
         self.province_combo.setCurrentIndex(0)
         self.province_combo.currentTextChanged.connect(self.on_province_selected)
         region_layout.addWidget(self.province_combo)
-        
+
         # 添加考试科目选择框
         exam_type_label = QLabel("考试科目:")
         region_layout.addWidget(exam_type_label)
-        
+
         self.exam_type_combo = QComboBox()
         self.exam_type_combo.setEnabled(False)  # 初始状态禁用，等待选择省份
         self.exam_type_combo.currentTextChanged.connect(self.on_exam_type_selected)
@@ -432,8 +558,7 @@ class DateSelectDialog(QDialog):
         self.calendar_widget.selectionChanged.connect(self.on_calendar_date_selected)
 
         # 为星期几标题设置中文
-        for i, day in enumerate(["一", "二", "三", "四", "五", "六", "日"]):
-            self.calendar_widget.setHorizontalHeaderFormat(QCalendarWidget.HorizontalHeaderFormat.SingleLetterDayNames)
+        self.calendar_widget.setHorizontalHeaderFormat(QCalendarWidget.HorizontalHeaderFormat.SingleLetterDayNames)
 
         calendar_layout.addWidget(self.calendar_widget)
 
@@ -500,50 +625,91 @@ class DateSelectDialog(QDialog):
             }
         """)
         date_layout.addWidget(self.date_edit)
-        
+
         layout.addWidget(date_frame)
-        
+
         # 添加提示信息
         note_label = QLabel("注意：以上考试日期信息来自网络整理，仅供参考。\n"
                            "各地考试安排可能会有调整，请以当地教育部门最新通知为准。")
         note_label.setStyleSheet("color: #666; font-size: 10pt;")
         note_label.setWordWrap(True)
         layout.addWidget(note_label)
-        
+
         # 按钮布局
         button_layout = QHBoxLayout()
-        
+
         # 自定义确定和取消按钮，替代标准按钮盒
         ok_button = QPushButton("确定")
         ok_button.clicked.connect(self.accept)
         button_layout.addWidget(ok_button)
-        
+
         cancel_button = QPushButton("取消")
         cancel_button.setStyleSheet("background-color: #f0f0f0; color: #333;")
         cancel_button.clicked.connect(self.reject)
         button_layout.addWidget(cancel_button)
-        
+
         layout.addLayout(button_layout)
-    
+
+    @staticmethod
+    def _calculate_exam_year():
+        """计算考试年份"""
+        current_date = datetime.datetime.now()
+        current_year = current_date.year
+        return current_year + 1 if current_date > datetime.datetime(current_year, 6, 1) else current_year
+
+    @staticmethod
+    def _convert_to_full_dates(base_dates):
+        """将基础日期转换为包含年份的完整日期"""
+        full_dates = {}
+        current_date = datetime.datetime.now()
+
+        for province, exam_types in base_dates.items():
+            full_dates[province] = {}
+            for exam_type, date_tuple in exam_types.items():
+                if date_tuple is None:
+                    full_dates[province][exam_type] = None
+                    continue
+
+                month, day = date_tuple
+                # 计算正确的年份
+                year = current_date.year
+
+                # 如果当前日期已过这个月日，使用明年
+                if current_date > datetime.datetime(year, month, day):
+                    year += 1
+
+                full_dates[province][exam_type] = QDate(year, month, day)
+
+        return full_dates
+
     def on_exam_type_changed(self):
         """当选择考试类型（中考/高考）变化时更新界面"""
+        # 重新计算考试年份
+        self.exam_year = self._calculate_exam_year()
+
         if self.zhongkao_radio.isChecked():
             self.current_exam_mode = "中考"
+            # 使用基础数据重新生成日期
+            self.zhongkao_dates = self._convert_to_full_dates(self.base_zhongkao_dates)
             self.exam_dates = self.zhongkao_dates
             self.setWindowTitle("设置中考日期")
         else:
             self.current_exam_mode = "高考"
+            # 使用基础数据重新生成日期
+            self.gaokao_dates = self._convert_to_full_dates(self.base_gaokao_dates)
             self.exam_dates = self.gaokao_dates
             self.setWindowTitle("设置高考日期")
-        
+
         # 更新标题
         self.findChild(QLabel).setText(f"请选择{self.current_exam_mode}日期")
-        
+
         # 更新省份下拉框
         current_province = self.province_combo.currentText()
         self.province_combo.clear()
-        self.province_combo.addItems(list(self.exam_dates.keys()))
-        
+        # 修复类型错误：将dict_keys转换为列表
+        province_list = list(self.exam_dates.keys())
+        self.province_combo.addItems(province_list)
+
         # 尝试保持之前选择的省份（如果新列表中存在）
         index = self.province_combo.findText(current_province)
         if index >= 0:
@@ -559,55 +725,56 @@ class DateSelectDialog(QDialog):
             self.exam_type_combo.clear()
             self.exam_type_combo.setEnabled(False)
             return
-            
+
         # 获取该省份/城市的考试类型
         exam_types = self.exam_dates.get(province_name, {})
-        
+
         # 更新考试类型下拉框
         self.exam_type_combo.clear()
-        self.exam_type_combo.addItems(exam_types.keys())
-        
+        # 修复类型错误：将dict_keys转换为列表
+        self.exam_type_combo.addItems(list(exam_types.keys()))
+
         # 如果有考试类型，启用下拉框
         if exam_types:
             self.exam_type_combo.setEnabled(True)
-            
+
             # 默认选择第一个考试类型
             if self.exam_type_combo.count() > 0:
                 first_exam_type = self.exam_type_combo.itemText(0)
                 self.on_exam_type_selected(first_exam_type)
         else:
             self.exam_type_combo.setEnabled(False)
-    
+
     def on_exam_type_selected(self, exam_type):
         """当选择考试类型时更新日期"""
         if not exam_type:
             return
-            
+
         province_name = self.province_combo.currentText()
         exam_types = self.exam_dates.get(province_name, {})
         selected_date = exam_types.get(exam_type)
-        
+
         if selected_date:
             self.date_edit.setDate(selected_date)
             # 同时更新日历视图的选中日期
             self.calendar_widget.setSelectedDate(selected_date)
-    
+
     def on_calendar_date_selected(self):
         """当在日历中选择日期时更新日期编辑框"""
         selected_date = self.calendar_widget.selectedDate()
         self.date_edit.setDate(selected_date)
-    
+
     def get_selected_date(self):
         """获取用户选择的日期"""
         qdate = self.date_edit.date()
         return datetime.datetime(qdate.year(), qdate.month(), qdate.day())
-        
+
     def get_selected_exam_type(self):
         """获取用户选择的考试类型"""
         if self.exam_type_combo.isEnabled() and self.exam_type_combo.currentText():
             return self.exam_type_combo.currentText()
         return "文化课"  # 默认返回文化课
-    
+
     def get_selected_exam_mode(self):
         """获取用户选择的考试模式（中考/高考）"""
         return self.current_exam_mode
@@ -642,10 +809,10 @@ class CountdownWindow(QMainWindow):
         self.exam_mode = "中考"  # 默认考试模式（中考/高考）
         # 默认目标日期，将在加载配置或用户设定后更改
         self.target_date = None
-        
+
         # 加载配置（如果存在）
         self.load_config()
-        
+
         # 如果没有设置目标日期，则提示用户设置
         if self.target_date is None:
             self.show_date_select_dialog()
@@ -676,24 +843,44 @@ class CountdownWindow(QMainWindow):
         # 创建定时器来更新倒计时
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_countdown)
-        
+
         # 初始设置窗口位置
         self.update_position()
-        
+
         # 根据精度设置初始更新间隔
         self.update_timer_interval()
-        
+
         # 初始更新显示
         self.update_countdown()
 
         # 创建系统托盘图标
         self.create_tray_icon()
 
+    @staticmethod
+    def get_exam_year():
+        """根据当前日期智能判断考试年份"""
+        current_date = datetime.datetime.now()
+        current_year = current_date.year
+
+        # 根据当前日期判断是否过了6月份
+        return current_year + 1 if current_date.month > 6 else current_year
+
     def show_date_select_dialog(self):
         """显示日期选择对话框"""
         dialog = DateSelectDialog(self, self.exam_mode)
         if dialog.exec():
-            self.target_date = dialog.get_selected_date()
+            selected_date = dialog.get_selected_date()
+
+            # 检查选择的日期是否已过，如果已过则使用明年的相同日期
+            current_date = datetime.datetime.now()
+            if selected_date < current_date:
+                selected_date = datetime.datetime(
+                    current_date.year + 1,
+                    selected_date.month,
+                    selected_date.day
+                )
+
+            self.target_date = selected_date
             self.exam_type = dialog.get_selected_exam_type()
             self.exam_mode = dialog.get_selected_exam_mode()
             # 保存配置
@@ -702,10 +889,21 @@ class CountdownWindow(QMainWindow):
         else:
             # 如果用户取消，则使用默认日期
             if self.target_date is None:  # 只有在没有现有日期时才设置默认值
+                current_date = datetime.datetime.now()
                 if self.exam_mode == "中考":
-                    self.target_date = datetime.datetime(2025, 6, 27, 0, 0, 0)
+                    default_date = datetime.datetime(current_date.year, 6, 24)
                 else:  # 高考
-                    self.target_date = datetime.datetime(2025, 6, 7, 0, 0, 0)
+                    default_date = datetime.datetime(current_date.year, 6, 7)
+
+                # 如果默认日期已过，使用明年
+                if default_date < current_date:
+                    default_date = datetime.datetime(
+                        current_date.year + 1,
+                        default_date.month,
+                        default_date.day
+                    )
+
+                self.target_date = default_date
                 self.exam_type = "文化课" if self.exam_mode == "中考" else "统一科目"
                 print(f"用户取消设置，使用默认{self.exam_mode}日期: {self.target_date.strftime('%Y-%m-%d')}")
 
@@ -714,11 +912,11 @@ class CountdownWindow(QMainWindow):
         if not os.path.exists(CONFIG_FILE):
             print("配置文件不存在，将使用默认设置")
             return
-            
+
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            
+
             # 加载配置
             self.position = config.get('position', self.position)
             self.precision = config.get('precision', self.precision)
@@ -727,27 +925,34 @@ class CountdownWindow(QMainWindow):
             self.window_height = config.get('window_height', self.window_height)
             self.exam_type = config.get('exam_type', self.exam_type)
             self.exam_mode = config.get('exam_mode', self.exam_mode)
-            
+
             # 加载目标日期
             target_date_str = config.get('target_date')
             if target_date_str:
                 try:
                     date_parts = list(map(int, target_date_str.split('-')))
-                    self.target_date = datetime.datetime(date_parts[0], date_parts[1], date_parts[2])
+                    loaded_date = datetime.datetime(date_parts[0], date_parts[1], date_parts[2])
+
+                    # 检查加载的日期是否已过期
+                    current_date = datetime.datetime.now()
+                    if loaded_date < current_date:
+                        # 使用相同的月日，年份加一
+                        self.target_date = datetime.datetime(
+                            current_date.year + 1,
+                            loaded_date.month,
+                            loaded_date.day
+                        )
+                        print(f"检测到过期日期，已更新为下一年度: {self.target_date.strftime('%Y-%m-%d')}")
+                    else:
+                        self.target_date = loaded_date
                 except (ValueError, IndexError) as e:
-                    # 具体捕获值错误和索引错误
                     print(f"日期解析错误: {e}，将使用默认日期")
                     self.target_date = None
-            
+
             print("成功从配置文件加载设置")
-        except json.JSONDecodeError as e:
-            print(f"配置文件格式错误: {e}")
-        except FileNotFoundError:
-            print("配置文件不存在")
-        except PermissionError:
-            print("没有权限读取配置文件")
-        except OSError as e:
-            print(f"读取配置文件时出现操作系统错误: {e}")
+        except Exception as e:
+            print(f"加载配置文件时出错: {e}")
+            self.target_date = None
 
     def save_config(self):
         """保存当前设置到配置文件"""
@@ -755,7 +960,7 @@ class CountdownWindow(QMainWindow):
             target_date_str = None
             if self.target_date:
                 target_date_str = f"{self.target_date.year}-{self.target_date.month}-{self.target_date.day}"
-                
+
             config = {
                 'position': self.position,
                 'precision': self.precision,
@@ -766,10 +971,10 @@ class CountdownWindow(QMainWindow):
                 'exam_type': self.exam_type,
                 'exam_mode': self.exam_mode
             }
-            
+
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=4)
-                
+
             print("设置已保存到配置文件")
         except Exception as e:
             print(f"保存配置文件出错: {e}")
@@ -783,10 +988,10 @@ class CountdownWindow(QMainWindow):
 
         # 创建托盘图标菜单
         self.tray_menu = QMenu()
-        
+
         # 添加位置设置菜单
         self.position_menu = self.tray_menu.addMenu("窗口位置")
-        
+
         # 添加四个位置选项
         positions = [
             ("左上角", "left_top"),
@@ -794,7 +999,7 @@ class CountdownWindow(QMainWindow):
             ("左下角", "left_bottom"),
             ("右下角", "right_bottom")
         ]
-        
+
         for pos_name, pos_value in positions:
             action = QAction(pos_name, self)
             # 使用setProperty而不是setData
@@ -803,10 +1008,10 @@ class CountdownWindow(QMainWindow):
             action.setCheckable(True)
             action.setChecked(self.position == pos_value)
             self.position_menu.addAction(action)
-        
+
         # 添加显示模式菜单 - 保存为类属性
         self.display_menu = self.tray_menu.addMenu("显示模式")
-        
+
         # 添加水印模式选项
         watermark_action = QAction("水印样式", self)
         # 使用setProperty而不是setData
@@ -815,7 +1020,7 @@ class CountdownWindow(QMainWindow):
         watermark_action.setCheckable(True)
         watermark_action.setChecked(self.display_mode == "watermark")
         self.display_menu.addAction(watermark_action)
-        
+
         # 添加高辨识度模式选项
         visible_action = QAction("高辨识度", self)
         # 使用setProperty而不是setData
@@ -835,7 +1040,7 @@ class CountdownWindow(QMainWindow):
             action.setProperty("precision_value", i)  # 保存精度值
             action.triggered.connect(self.change_precision)
             precision_menu.addAction(action)
-        
+
         # 添加暂停/恢复选项
         self.pause_action = QAction("暂停更新", self)
         self.pause_action.setCheckable(True)
@@ -846,9 +1051,9 @@ class CountdownWindow(QMainWindow):
         change_date_action = QAction(f"修改{self.exam_mode}日期", self)
         change_date_action.triggered.connect(self.show_date_select_dialog)
         self.tray_menu.addAction(change_date_action)
-        
+
         # 添加切换考试类型的选项
-        switch_exam_action = QAction(f"切换到{'高考' if self.exam_mode == '中考' else '中考'}", self)
+        switch_exam_action = QAction(f"切换到{'高考' if self.exam_mode == "中考" else "中考"}", self)
         switch_exam_action.triggered.connect(self.switch_exam_mode)
         self.tray_menu.addAction(switch_exam_action)
 
@@ -879,39 +1084,48 @@ class CountdownWindow(QMainWindow):
         if action:
             # 获取新的位置
             self.position = action.property("position_value")
-            
+
             # 更新菜单项选中状态
             for act in self.position_menu.actions():
                 act.setChecked(act.property("position_value") == self.position)
-            
+
             # 更新窗口位置
             self.update_position()
-            
+
             # 保存配置
             self.save_config()
-    
+
     def update_position(self):
         """根据当前位置设置更新窗口位置"""
         # 获取整个屏幕的几何信息
         screen_geometry = QApplication.primaryScreen().geometry()
         # 获取排除任务栏后的可用屏幕区域
         available_geometry = QApplication.primaryScreen().availableGeometry()
-        
+
+        # 为左侧和右侧定义不同的边距
+        left_margin = 5   # 左侧边距更小
+        right_margin = 10  # 右侧边距保持不变
+        top_margin = 5    # 顶部边距更小
+        bottom_margin = 10 # 底部边距保持不变
+
         if self.position == "left_top":
-            # 左上角
-            self.setGeometry(0, 0, self.window_width, self.window_height)
+            # 左上角 - 使用更小的边距，更靠近边缘
+            self.setGeometry(left_margin, top_margin,
+                             self.window_width, self.window_height)
         elif self.position == "right_top":
-            # 右上角
-            self.setGeometry(screen_geometry.width() - self.window_width, 0, 
+            # 右上角 - 保持原有边距
+            self.setGeometry(screen_geometry.width() - self.window_width - right_margin,
+                             top_margin,
                              self.window_width, self.window_height)
         elif self.position == "left_bottom":
-            # 左下角 - 使用可用区域避开任务栏
-            self.setGeometry(0, available_geometry.height() + available_geometry.y() - self.window_height, 
+            # 左下角 - 左侧使用更小的边距
+            self.setGeometry(left_margin,
+                             available_geometry.height() + available_geometry.y() - self.window_height - bottom_margin,
                              self.window_width, self.window_height)
         elif self.position == "right_bottom":
-            # 右下角 - 使用可用区域避开任务栏
-            self.setGeometry(screen_geometry.width() - self.window_width, 
-                             available_geometry.height() + available_geometry.y() - self.window_height, 
+            # 右下角 - 保持原有边距
+            self.setGeometry(screen_geometry.width() - self.window_width - right_margin,
+                             available_geometry.height() + available_geometry.y() - self.window_height - bottom_margin,
                              self.window_width, self.window_height)
 
     def change_display_mode(self):
@@ -920,17 +1134,17 @@ class CountdownWindow(QMainWindow):
         if action:
             # 获取新的显示模式
             self.display_mode = action.property("mode_value")
-            
+
             # 更新菜单项选中状态 - 使用类属性而非findChild
             for act in self.display_menu.actions():
                 act.setChecked(act.property("mode_value") == self.display_mode)
-                
+
             # 更新显示
             self.update_countdown()
-            
+
             # 保存配置
             self.save_config()
-    
+
     def tray_icon_activated(self, reason):
         """处理托盘图标激活事件"""
         if reason == QSystemTrayIcon.ActivationReason.Trigger:  # 单击图标
@@ -946,32 +1160,32 @@ class CountdownWindow(QMainWindow):
         if action:
             old_precision = self.precision
             self.precision = action.property("precision_value")
-            
+
             # 打印日志以便调试
             print(f"正在切换精度：从 {old_precision} 位小数到 {self.precision} 位小数")
-            
+
             # 强制停止旧定时器
             if self.timer.isActive():
                 self.timer.stop()
-            
+
             # 根据新精度更新定时器间隔
             self.update_timer_interval()
-            
+
             # 立即更新显示
             self.update_countdown()
-            
+
             # 保存配置
             self.save_config()
-    
+
     def update_timer_interval(self):
         """根据当前精度计算并设置合适的定时器更新间隔"""
         # 一天 = 86400 秒
         # 对于n位小数，最小变化是 10^(-n) 天 = 10^(-n) * 86400 秒
         # 为了观察到变化，更新间隔应小于这个值
-        
+
         # 计算当前精度下最小变化的时间（秒）
         change_seconds = 86400 * (10 ** (-self.precision))
-        
+
         # 根据精度级别设置不同的比例因子
         # 这里的比例因子可以根据实际需求进行调整
         if self.precision <= 1:
@@ -980,25 +1194,25 @@ class CountdownWindow(QMainWindow):
             factor = 0.95
         else:
             factor = 0.9
-        
+
         # 计算更新间隔（毫秒）
         interval = int(change_seconds * factor * 1000)
-        
+
         # 设置更新间隔的上下限
         min_interval = 10    # 最小10毫秒，避免过于频繁更新
         max_interval = 60000 # 最大60秒，确保即使是低精度也有合理的更新频率
-        
+
         interval = max(min_interval, min(interval, max_interval))
-        
+
         # 先确保定时器真的停止了
         if self.timer.isActive():
             self.timer.stop()
-        
+
         # 为了确保重启干净，使用短延迟
         QTimer.singleShot(10, lambda: self._start_timer_with_interval(interval))
-        
+
         print(f"精度设置为 {self.precision} 位小数，变化时间 {change_seconds:.6f} 秒，更新间隔设为 {interval} 毫秒")
-    
+
     def _start_timer_with_interval(self, interval):
         """安全地启动定时器，确保旧定时器已停止"""
         try:
@@ -1013,7 +1227,7 @@ class CountdownWindow(QMainWindow):
     def toggle_pause(self):
         """切换暂停/恢复状态"""
         self.paused = not self.paused
-        
+
         if self.paused:
             self.pause_action.setText("恢复更新")
             # 确保定时器停止
@@ -1031,27 +1245,36 @@ class CountdownWindow(QMainWindow):
     def switch_exam_mode(self):
         """切换考试模式（中考/高考）"""
         # 切换考试模式
-        self.exam_mode = "高考" if self.exam_mode == "中考" else "中考"
-        
+        new_mode = "高考" if self.exam_mode == "中考" else "中考"
+        self.exam_mode = new_mode
+
         # 更新窗口标题
         self.setWindowTitle(f"{self.exam_mode}倒计时")
-        
+
+        # 重置考试类型为默认值
+        self.exam_type = "统一科目" if self.exam_mode == "高考" else "文化课"
+
         # 更新托盘菜单项文字
         for action in self.tray_menu.actions():
             if "修改" in action.text():
                 action.setText(f"修改{self.exam_mode}日期")
             elif "切换到" in action.text():
                 action.setText(f"切换到{'高考' if self.exam_mode == '中考' else '中考'}")
-        
+
+        # 弹出日期选择对话框前保存当前模式
+        self.save_config()
+
         # 弹出日期选择对话框
         self.show_date_select_dialog()
+
+        # 立即更新显示
+        self.update_countdown()
 
     def update_countdown(self):
         """更新倒计时显示"""
         try:
             # 如果暂停状态，不更新计算
             if self.paused:
-                # 如果有之前的数据，继续使用它
                 if self.last_days_left is None:
                     return
                 days_left = self.last_days_left
@@ -1059,21 +1282,21 @@ class CountdownWindow(QMainWindow):
                 now = datetime.datetime.now()
                 time_left = self.target_date - now
                 days_left = time_left.total_seconds() / (24 * 3600)  # 转换为天数
-                # 保存当前计算结果，以便暂停时使用
                 self.last_days_left = days_left
 
-            # 更新文本内容，包含考试类型和模式
+            # 根据考试模式和类型构建显示文本
             if self.exam_mode == "中考":
-                if self.exam_type == "文化课":
+                if self.exam_type in ["文化课", "地理生物", "体育考试", "英语听说", "理化实验", "英语听力"]:
+                    text = f"距离中考{self.exam_type if self.exam_type != '文化课' else ''}: {days_left:.{self.precision}f} 天"
+                else:
                     text = f"距离中考: {days_left:.{self.precision}f} 天"
-                else:
-                    text = f"距离中考{self.exam_type}: {days_left:.{self.precision}f} 天"
             else:  # 高考
-                if self.exam_type == "统一科目":
-                    text = f"距离高考: {days_left:.{self.precision}f} 天"
+                if self.exam_type in ["统一科目", "选考科目", "外语", "技术", "外语听说", "等级考科目",
+                                   "文理综合", "藏语文", "朝鲜语文", "蒙古语文"]:
+                    text = f"距离高考{self.exam_type if self.exam_type != '统一科目' else ''}: {days_left:.{self.precision}f} 天"
                 else:
-                    text = f"距离高考{self.exam_type}: {days_left:.{self.precision}f} 天"
-            
+                    text = f"距离高考: {days_left:.{self.precision}f} 天"
+
             self.countdown_label.setText(text)
 
             # 根据当前显示模式应用不同样式
@@ -1122,7 +1345,7 @@ class CountdownWindow(QMainWindow):
         """重写关闭事件，当关闭窗口时隐藏而不是退出，并保存配置"""
         # 保存当前配置
         self.save_config()
-        
+
         if self.tray_icon and self.tray_icon.isVisible():
             self.hide()
             event.ignore()
@@ -1140,3 +1363,4 @@ if __name__ == "__main__":
     sys.exit(app.exec())
 
 # AI-Assisted End: GitHub Copilot - 2025/04
+
