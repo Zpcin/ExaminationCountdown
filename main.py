@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                               QWidget, QSystemTrayIcon, QMenu, QDialog, 
                               QDateEdit, QHBoxLayout, QComboBox,
                               QCalendarWidget, QTabWidget, QPushButton, QFrame,
-                              QRadioButton, QButtonGroup)
+                              QRadioButton, QButtonGroup, QLineEdit, QGroupBox)
 from PySide6.QtCore import Qt, QTimer, QDate
 from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QPixmap
 
@@ -35,8 +35,8 @@ class DateSelectDialog(QDialog):
         # 然后计算考试年份
         self.exam_year = self._calculate_exam_year()
 
-        self.setWindowTitle(f"设置{exam_mode}日期")
-        self.resize(450, 500)  # 增加高度以适应新控件
+        self.setWindowTitle(f"设置日期和模式")
+        self.resize(450, 550)  # 增加高度以适应新控件
         self.setStyleSheet("""
             QDialog {
                 background-color: #f5f5f5;
@@ -69,6 +69,29 @@ class DateSelectDialog(QDialog):
             }
             QPushButton:hover {
                 background-color: #3a76d8;
+            }
+            QLineEdit {
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                padding: 8px;
+                font-size: 11pt;
+                background-color: white;
+            }
+            QLineEdit:focus {
+                border-color: #4a86e8;
+            }
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid #cccccc;
+                border-radius: 6px;
+                margin-top: 1.5ex;
+                padding: 10px;
+                background-color: #ffffff;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
             }
             QCalendarWidget {
                 background-color: white;
@@ -453,15 +476,20 @@ class DateSelectDialog(QDialog):
         self.zhongkao_dates = self._convert_to_full_dates(self.base_zhongkao_dates)
         self.gaokao_dates = self._convert_to_full_dates(self.base_gaokao_dates)
 
-        # 当前激活的考试类型
+        # 默认激活考试类型
         self.exam_dates = self.zhongkao_dates if exam_mode == "中考" else self.gaokao_dates
+
+        # 添加自定义文本模板
+        self.custom_text_template = "{time}天后，未来将会怎样？"
+        if parent and hasattr(parent, "custom_text_template") and parent.custom_text_template:
+            self.custom_text_template = parent.custom_text_template
 
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
         layout.setContentsMargins(20, 20, 20, 20)
 
         # 标题标签
-        info_label = QLabel(f"请选择{exam_mode}日期")
+        info_label = QLabel("设置倒计时日期和模式")
         info_label.setStyleSheet("font-size: 16pt; font-weight: bold; color: #333; margin-bottom: 10px;")
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(info_label)
@@ -471,7 +499,7 @@ class DateSelectDialog(QDialog):
         exam_type_frame.setStyleSheet("background-color: #f8f9fa; border-radius: 8px; padding: 10px;")
         exam_type_layout = QHBoxLayout(exam_type_frame)
 
-        exam_type_label = QLabel("考试类型:")
+        exam_type_label = QLabel("模式类型:")
         exam_type_label.setStyleSheet("font-weight: bold;")
         exam_type_layout.addWidget(exam_type_label)
 
@@ -489,11 +517,34 @@ class DateSelectDialog(QDialog):
         self.exam_type_group.addButton(self.gaokao_radio)
         exam_type_layout.addWidget(self.gaokao_radio)
 
+        # 添加自定义模式单选按钮
+        self.custom_radio = QRadioButton("自定义")
+        self.custom_radio.setChecked(exam_mode == "自定义")
+        self.custom_radio.toggled.connect(self.on_exam_type_changed)
+        self.exam_type_group.addButton(self.custom_radio)
+        exam_type_layout.addWidget(self.custom_radio)
+
         layout.addWidget(exam_type_frame)
 
+        # 创建自定义文本输入框组
+        self.custom_group = QGroupBox("自定义文本设置")
+        self.custom_group.setVisible(exam_mode == "自定义")
+        custom_layout = QVBoxLayout(self.custom_group)
+
+        custom_help_label = QLabel("在文本中使用{time}标记来指定倒计时数字的位置")
+        custom_help_label.setWordWrap(True)
+        custom_help_label.setStyleSheet("font-size: 10pt; color: #666;")
+        custom_layout.addWidget(custom_help_label)
+
+        self.custom_text_input = QLineEdit(self.custom_text_template)
+        self.custom_text_input.setPlaceholderText("例如：距离目标仅剩{time}天")
+        custom_layout.addWidget(self.custom_text_input)
+
+        layout.addWidget(self.custom_group)
+
         # 创建标签页控件来分隔不同的选择方式
-        tab_widget = QTabWidget()
-        tab_widget.setStyleSheet("""
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setStyleSheet("""
             QTabWidget::pane {
                 border: 1px solid #cccccc;
                 border-radius: 5px;
@@ -514,7 +565,7 @@ class DateSelectDialog(QDialog):
                 border-bottom: 2px solid #4a86e8;
             }
         """)
-        layout.addWidget(tab_widget)
+        layout.addWidget(self.tab_widget)
 
         # 按地区选择的标签页
         region_tab = QWidget()
@@ -541,7 +592,7 @@ class DateSelectDialog(QDialog):
         self.exam_type_combo.currentTextChanged.connect(self.on_exam_type_selected)
         region_layout.addWidget(self.exam_type_combo)
 
-        tab_widget.addTab(region_tab, "按地区选择")
+        self.tab_widget.addTab(region_tab, "按地区选择")
 
         # 日历选择的标签页
         calendar_tab = QWidget()
@@ -562,7 +613,7 @@ class DateSelectDialog(QDialog):
 
         calendar_layout.addWidget(self.calendar_widget)
 
-        tab_widget.addTab(calendar_tab, "日历选择")
+        self.tab_widget.addTab(calendar_tab, "日历选择")
 
         # 选择的日期展示
         date_frame = QFrame()
@@ -650,6 +701,21 @@ class DateSelectDialog(QDialog):
 
         layout.addLayout(button_layout)
 
+        # 根据当前选择的模式更新界面状态
+        self.update_ui_based_on_mode(exam_mode)
+
+    def update_ui_based_on_mode(self, mode):
+        """根据当前选择的模式更新UI元素的可见性"""
+        is_custom = mode == "自定义"
+        self.custom_group.setVisible(is_custom)
+        # 保持标签页始终可见，确保日历可用
+        self.tab_widget.setVisible(True)
+        
+        if is_custom:
+            # 在自定义模式下，显示日历标签页
+            self.tab_widget.setCurrentIndex(1)  # 日历标签页
+            self.calendar_widget.setSelectedDate(self.date_edit.date())
+
     @staticmethod
     def _calculate_exam_year():
         """计算考试年份"""
@@ -683,7 +749,7 @@ class DateSelectDialog(QDialog):
         return full_dates
 
     def on_exam_type_changed(self):
-        """当选择考试类型（中考/高考）变化时更新界面"""
+        """当选择考试类型（中考/高考/自定义）变化时更新界面"""
         # 重新计算考试年份
         self.exam_year = self._calculate_exam_year()
 
@@ -693,31 +759,35 @@ class DateSelectDialog(QDialog):
             self.zhongkao_dates = self._convert_to_full_dates(self.base_zhongkao_dates)
             self.exam_dates = self.zhongkao_dates
             self.setWindowTitle("设置中考日期")
-        else:
+        elif self.gaokao_radio.isChecked():
             self.current_exam_mode = "高考"
             # 使用基础数据重新生成日期
             self.gaokao_dates = self._convert_to_full_dates(self.base_gaokao_dates)
             self.exam_dates = self.gaokao_dates
             self.setWindowTitle("设置高考日期")
+        else:  # 自定义模式
+            self.current_exam_mode = "自定义"
+            self.setWindowTitle("设置自定义倒计时")
 
-        # 更新标题
-        self.findChild(QLabel).setText(f"请选择{self.current_exam_mode}日期")
+        # 更新UI组件显示状态
+        self.update_ui_based_on_mode(self.current_exam_mode)
 
-        # 更新省份下拉框
-        current_province = self.province_combo.currentText()
-        self.province_combo.clear()
-        # 修复类型错误：将dict_keys转换为列表
-        province_list = list(self.exam_dates.keys())
-        self.province_combo.addItems(province_list)
+        if not self.custom_radio.isChecked():
+            # 更新省份下拉框
+            current_province = self.province_combo.currentText()
+            self.province_combo.clear()
+            # 修复类型错误：将dict_keys转换为列表
+            province_list = list(self.exam_dates.keys())
+            self.province_combo.addItems(province_list)
 
-        # 尝试保持之前选择的省份（如果新列表中存在）
-        index = self.province_combo.findText(current_province)
-        if index >= 0:
-            self.province_combo.setCurrentIndex(index)
-        else:
-            self.province_combo.setCurrentIndex(0)
-            self.exam_type_combo.clear()
-            self.exam_type_combo.setEnabled(False)
+            # 尝试保持之前选择的省份（如果新列表中存在）
+            index = self.province_combo.findText(current_province)
+            if index >= 0:
+                self.province_combo.setCurrentIndex(index)
+            else:
+                self.province_combo.setCurrentIndex(0)
+                self.exam_type_combo.clear()
+                self.exam_type_combo.setEnabled(False)
 
     def on_province_selected(self, province_name):
         """当选择省份时更新考试类型和日期"""
@@ -776,8 +846,14 @@ class DateSelectDialog(QDialog):
         return "文化课"  # 默认返回文化课
 
     def get_selected_exam_mode(self):
-        """获取用户选择的考试模式（中考/高考）"""
+        """获取用户选择的考试模式（中考/高考/自定义）"""
         return self.current_exam_mode
+
+    def get_custom_text_template(self):
+        """获取用户输入的自定义文本模板"""
+        if self.custom_radio.isChecked():
+            return self.custom_text_input.text()
+        return None
 
 class CountdownWindow(QMainWindow):
     def __init__(self):
@@ -807,6 +883,8 @@ class CountdownWindow(QMainWindow):
         self.paused = False
         self.exam_type = "文化课"  # 默认考试类型
         self.exam_mode = "中考"  # 默认考试模式（中考/高考）
+        # 自定义模式的文本模板
+        self.custom_text_template = "{time}天后，未来将会怎样？"
         # 默认目标日期，将在加载配置或用户设定后更改
         self.target_date = None
 
@@ -817,7 +895,10 @@ class CountdownWindow(QMainWindow):
         if self.target_date is None:
             self.show_date_select_dialog()
 
-        self.setWindowTitle(f"{self.exam_mode}倒计时")
+        if self.exam_mode == "自定义":
+            self.setWindowTitle("自定义倒计时")
+        else:
+            self.setWindowTitle(f"{self.exam_mode}倒计时")
 
         # 创建中心部件
         central_widget = QWidget()
@@ -881,11 +962,23 @@ class CountdownWindow(QMainWindow):
                 )
 
             self.target_date = selected_date
-            self.exam_type = dialog.get_selected_exam_type()
             self.exam_mode = dialog.get_selected_exam_mode()
+
+            if self.exam_mode == "自定义":
+                self.custom_text_template = dialog.get_custom_text_template() or self.custom_text_template
+                self.exam_type = "自定义"
+            else:
+                self.exam_type = dialog.get_selected_exam_type()
+
             # 保存配置
             self.save_config()
-            print(f"{self.exam_mode}{self.exam_type}日期设置为: {self.target_date.strftime('%Y-%m-%d')}")
+            print(f"日期设置为: {self.target_date.strftime('%Y-%m-%d')}，模式: {self.exam_mode}")
+
+            # 更新窗口标题
+            if self.exam_mode == "自定义":
+                self.setWindowTitle("自定义倒计时")
+            else:
+                self.setWindowTitle(f"{self.exam_mode}倒计时")
         else:
             # 如果用户取消，则使用默认日期
             if self.target_date is None:  # 只有在没有现有日期时才设置默认值
@@ -925,6 +1018,7 @@ class CountdownWindow(QMainWindow):
             self.window_height = config.get('window_height', self.window_height)
             self.exam_type = config.get('exam_type', self.exam_type)
             self.exam_mode = config.get('exam_mode', self.exam_mode)
+            self.custom_text_template = config.get('custom_text_template', self.custom_text_template)
 
             # 加载目标日期
             target_date_str = config.get('target_date')
@@ -969,7 +1063,8 @@ class CountdownWindow(QMainWindow):
                 'window_height': self.window_height,
                 'target_date': target_date_str,
                 'exam_type': self.exam_type,
-                'exam_mode': self.exam_mode
+                'exam_mode': self.exam_mode,
+                'custom_text_template': self.custom_text_template
             }
 
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -1047,15 +1142,34 @@ class CountdownWindow(QMainWindow):
         self.pause_action.triggered.connect(self.toggle_pause)
         self.tray_menu.addAction(self.pause_action)
 
-        # 添加修改考试日期的选项
-        change_date_action = QAction(f"修改{self.exam_mode}日期", self)
+        # 添加切换考试类型的选项
+        modes_menu = self.tray_menu.addMenu("切换模式")
+
+        # 中考选项
+        zhongkao_action = QAction("中考模式", self)
+        zhongkao_action.triggered.connect(lambda: self.switch_exam_mode("中考"))
+        zhongkao_action.setCheckable(True)
+        zhongkao_action.setChecked(self.exam_mode == "中考")
+        modes_menu.addAction(zhongkao_action)
+
+        # 高考选项
+        gaokao_action = QAction("高考模式", self)
+        gaokao_action.triggered.connect(lambda: self.switch_exam_mode("高考"))
+        gaokao_action.setCheckable(True)
+        gaokao_action.setChecked(self.exam_mode == "高考")
+        modes_menu.addAction(gaokao_action)
+
+        # 自定义选项
+        custom_action = QAction("自定义模式", self)
+        custom_action.triggered.connect(lambda: self.switch_exam_mode("自定义"))
+        custom_action.setCheckable(True)
+        custom_action.setChecked(self.exam_mode == "自定义")
+        modes_menu.addAction(custom_action)
+
+        # 添加修改日期的选项
+        change_date_action = QAction("修改日期设置", self)
         change_date_action.triggered.connect(self.show_date_select_dialog)
         self.tray_menu.addAction(change_date_action)
-
-        # 添加切换考试类型的选项
-        switch_exam_action = QAction(f"切换到{'高考' if self.exam_mode == "中考" else "中考"}", self)
-        switch_exam_action.triggered.connect(self.switch_exam_mode)
-        self.tray_menu.addAction(switch_exam_action)
 
         # 添加退出选项
         quit_action = QAction("退出", self)
@@ -1242,24 +1356,38 @@ class CountdownWindow(QMainWindow):
             self.update_countdown()
             print("定时器已恢复")
 
-    def switch_exam_mode(self):
-        """切换考试模式（中考/高考）"""
+    def switch_exam_mode(self, new_mode=None):
+        """切换考试模式（中考/高考/自定义）"""
+        # 如果没有指定新模式，则循环切换
+        if new_mode is None:
+            if self.exam_mode == "中考":
+                new_mode = "高考"
+            elif self.exam_mode == "高考":
+                new_mode = "自定义"
+            else:
+                new_mode = "中考"
+
         # 切换考试模式
-        new_mode = "高考" if self.exam_mode == "中考" else "中考"
         self.exam_mode = new_mode
 
         # 更新窗口标题
-        self.setWindowTitle(f"{self.exam_mode}倒计时")
+        if self.exam_mode == "自定义":
+            self.setWindowTitle("自定义倒计时")
+        else:
+            self.setWindowTitle(f"{self.exam_mode}倒计时")
 
-        # 重置考试类型为默认值
-        self.exam_type = "统一科目" if self.exam_mode == "高考" else "文化课"
+        # 重置考试类型
+        if self.exam_mode == "中考":
+            self.exam_type = "文化课"
+        elif self.exam_mode == "高考":
+            self.exam_type = "统一科目"
+        else:
+            self.exam_type = "自定义"
 
         # 更新托盘菜单项文字
         for action in self.tray_menu.actions():
-            if "修改" in action.text():
-                action.setText(f"修改{self.exam_mode}日期")
-            elif "切换到" in action.text():
-                action.setText(f"切换到{'高考' if self.exam_mode == '中考' else '中考'}")
+            if action.text() == "修改日期设置":
+                continue
 
         # 弹出日期选择对话框前保存当前模式
         self.save_config()
@@ -1285,7 +1413,15 @@ class CountdownWindow(QMainWindow):
                 self.last_days_left = days_left
 
             # 根据考试模式和类型构建显示文本
-            if self.exam_mode == "中考":
+            if self.exam_mode == "自定义":
+                # 使用自定义模板，用格式化后的天数替换{time}标记
+                time_text = f"{days_left:.{self.precision}f}"
+                if "{time}" in self.custom_text_template:
+                    text = self.custom_text_template.replace("{time}", time_text)
+                else:
+                    # 如果用户没有包含{time}标记，默认添加在文本前面
+                    text = f"{time_text} {self.custom_text_template}"
+            elif self.exam_mode == "中考":
                 if self.exam_type in ["文化课", "地理生物", "体育考试", "英语听说", "理化实验", "英语听力"]:
                     text = f"距离中考{self.exam_type if self.exam_type != '文化课' else ''}: {days_left:.{self.precision}f} 天"
                 else:
