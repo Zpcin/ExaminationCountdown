@@ -1,0 +1,106 @@
+# AI Development Declaration and Usage License
+
+## Version 1.0
+
+This program is an open-access AI-assisted development work with no human author copyright claims.
+
+### I. AI Development Declaration
+
+1. Program Development:
+   - Fully developed with AI assistance using:
+     * GitHub Copilot
+     * Other contributing AI models
+   
+2. AI Attribution Requirements:
+   - All AI-assisted code sections must be marked with start and end tags
+   - Format:
+     ```python
+     # AI-Assisted Start: [AI Tool Name] - [Date]
+     # AI generated code
+     # AI-Assisted End: [AI Tool Name] - [Date]
+     ```
+   - Retain original AI-generated comments
+   - For fully AI-generated files, mark at file header
+
+3. Data Source Attribution:
+   - Exam date sources must be cited
+   - Maintain original data provider credits
+   - Ensure data usage compliance
+
+### II. Usage Requirements
+
+1. Basic Principles:
+   - Free and open usage
+   - No personal data collection
+   - Maintain operational transparency
+
+2. Educational Standards:
+   - Support educational fairness
+   - Promote healthy study habits
+   - No exam cheating assistance
+
+3. User Responsibilities:
+   - Use features appropriately
+   - Report issues promptly
+   - Comply with applicable laws
+
+### III. Secondary Development
+
+1. Development Requirements:
+   - Retain AI development declaration and scope markers
+   - Mark new AI-assisted content with start/end tags
+   - Maintain code readability and marker integrity
+
+2. Data Handling:
+   - Cite data sources
+   - Preserve data attribution
+   - Keep data current
+
+3. Submission Guidelines:
+   - Document changes clearly
+   - Note AI tools used
+   - Provide documentation
+
+### IV. Disclaimer
+
+1. Program provided "AS IS"
+2. No liability for any damages
+3. Users assume all risks
+
+### V. Distribution
+
+1. Free Distribution:
+   - Unrestricted sharing
+   - Maintain AI declaration
+   - Include data sources
+
+2. Commercial Use:
+   - Permitted with attribution
+   - Retain AI credits
+   - Follow data usage rules
+
+### VI. Termination
+
+1. Violation Handling:
+   - Automatic termination upon breach
+   - Cease use and remove program
+   - Accept responsibility
+
+### VII. Updates
+
+1. Issue Reporting:
+   - Use Issues system
+   - Provide reproduction steps
+   - Participate in improvements
+
+2. Community Input:
+   - Follow contribution guidelines
+   - Submit improvements
+   - Join testing efforts
+
+---
+
+This program has no human author copyright restrictions but requires compliance with AI development declaration and data source attribution.
+License interpretation rights belong to the community.
+
+Effective: May 2025

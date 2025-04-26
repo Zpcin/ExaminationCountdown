@@ -1,3 +1,14 @@
+"""
+考试倒计时程序
+AI 开发作品，无人类作者版权声明
+遵循 LICENSE 许可证
+考试日期数据来源：互联网
+"""
+
+# AI-Assisted: GitHub Copilot - 2025/04
+# 本程序完全由 AI 开发，遵循 LICENSE 中的规定
+# 详细许可证请参阅项目根目录下的 LICENSE 文件
+# AI-Assisted Start: GitHub Copilot - 2025/04
 import sys
 import datetime
 import json
@@ -1128,3 +1139,4 @@ if __name__ == "__main__":
     window.show()
     sys.exit(app.exec())
 
+# AI-Assisted End: GitHub Copilot - 2025/04
