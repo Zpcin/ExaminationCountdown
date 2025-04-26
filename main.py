@@ -21,8 +21,12 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
 from PySide6.QtCore import Qt, QTimer, QDate
 from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QPixmap
 
-# 配置文件路径
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "countdown_config.json")
+# 配置文件路径 - 改为使用用户目录
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".countdown")
+CONFIG_FILE = os.path.join(CONFIG_DIR, "countdown_config.json")
+
+# 确保配置目录存在
+os.makedirs(CONFIG_DIR, exist_ok=True)
 
 class DateSelectDialog(QDialog):
     """日期选择对话框"""
@@ -1003,7 +1007,7 @@ class CountdownWindow(QMainWindow):
     def load_config(self):
         """从配置文件加载设置"""
         if not os.path.exists(CONFIG_FILE):
-            print("配置文件不存在，将使用默认设置")
+            print(f"配置文件不存在，将使用默认设置。配置路径: {CONFIG_FILE}")
             return
 
         try:
@@ -1043,7 +1047,7 @@ class CountdownWindow(QMainWindow):
                     print(f"日期解析错误: {e}，将使用默认日期")
                     self.target_date = None
 
-            print("成功从配置文件加载设置")
+            print(f"成功从配置文件加载设置: {CONFIG_FILE}")
         except Exception as e:
             print(f"加载配置文件时出错: {e}")
             self.target_date = None
@@ -1051,6 +1055,9 @@ class CountdownWindow(QMainWindow):
     def save_config(self):
         """保存当前设置到配置文件"""
         try:
+            # 确保配置目录存在
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            
             target_date_str = None
             if self.target_date:
                 target_date_str = f"{self.target_date.year}-{self.target_date.month}-{self.target_date.day}"
@@ -1070,7 +1077,7 @@ class CountdownWindow(QMainWindow):
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=4)
 
-            print("设置已保存到配置文件")
+            print(f"设置已保存到配置文件: {CONFIG_FILE}")
         except Exception as e:
             print(f"保存配置文件出错: {e}")
 
@@ -1499,4 +1506,3 @@ if __name__ == "__main__":
     sys.exit(app.exec())
 
 # AI-Assisted End: GitHub Copilot - 2025/04
-
