@@ -16,7 +16,7 @@ import sys
 import datetime
 import json
 import os
-import ctypes  # 添加ctypes用于调用Windows API
+import tempfile  # 导入tempfile用于创建锁文件
 from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                               QWidget, QSystemTrayIcon, QMenu, QDialog,
                               QDateEdit, QHBoxLayout, QComboBox,
@@ -25,20 +25,44 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                               QMessageBox)
 from PySide6.QtCore import Qt, QTimer, QDate
 from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QPixmap
-import socket
 
 # 全局应用程序变量
 app_instance = None
+lock_file = None  # 添加锁文件的全局引用
 
-# 确保只运行一个实例
+# 确保只运行一个实例，使用文件锁而不是socket
 def ensure_single_instance():
+    global lock_file
+    
     try:
-        # 尝试绑定一个特定端口，如果能绑定成功则表示没有其它实例在运行
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('localhost', 45568))  # 使用一个不常用的端口
-        # 保持套接字打开状态，直到程序结束
-        return sock
-    except socket.error:
+        # 在临时目录创建一个锁文件
+        lock_file_path = os.path.join(tempfile.gettempdir(), "countdown_app.lock")
+        
+        # 尝试以独占方式打开文件
+        lock_file = open(lock_file_path, "w")
+        
+        # 尝试对文件加锁
+        # Windows上使用msvcrt
+        if sys.platform == "win32":
+            import msvcrt
+            try:
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                return True  # 锁定成功，这是唯一的实例
+            except IOError:
+                # 锁定失败，说明已经有实例在运行
+                lock_file.close()
+                lock_file = None
+        else:
+            # 非Windows平台使用fcntl
+            import fcntl
+            try:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return True  # 锁定成功
+            except IOError:
+                lock_file.close()
+                lock_file = None
+                
+        # 如果代码执行到这里，说明锁定失败
         # 创建一个临时的QApplication实例，用于显示对话框
         global app_instance
         if app_instance is None:
@@ -51,28 +75,21 @@ def ensure_single_instance():
 
         print("程序已经在运行中，退出本实例。")
         sys.exit(0)
+        
+    except Exception as e:
+        print(f"检查单例实例时出错: {e}")
+        # 出错时也允许程序继续运行
+        return True
 
-# 保存套接字引用，防止被垃圾回收
-single_instance_socket = ensure_single_instance()
+# 检查是否为单一实例
+is_single_instance = ensure_single_instance()
+
 # 配置文件路径 - 改为使用用户目录
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".countdown")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "countdown_config.json")
 
 # 确保配置目录存在
 os.makedirs(CONFIG_DIR, exist_ok=True)
-
-# 添加隐藏文件夹函数
-def hide_directory(directory_path):
-    """在Windows环境下设置文件夹为隐藏状态"""
-    try:
-        # Windows 的 FILE_ATTRIBUTE_HIDDEN 属性值为 2
-        ctypes.windll.kernel32.SetFileAttributesW(directory_path, 2)
-        print(f"已将文件夹设为隐藏: {directory_path}")
-    except Exception as e:
-        print(f"设置文件夹隐藏属性时出错: {e}")
-
-# 隐藏配置目录
-hide_directory(CONFIG_DIR)
 
 class DateSelectDialog(QDialog):
     """日期选择对话框"""
@@ -1691,3 +1708,4 @@ if __name__ == "__main__":
     sys.exit(app_instance.exec())
 
 # AI-Assisted End: GitHub Copilot - 2025/04
+
