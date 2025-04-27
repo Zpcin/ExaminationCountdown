@@ -1016,7 +1016,11 @@ class CountdownWindow(QMainWindow):
 
             # 尝试加载考试日期列表
             dates = config.get('dates', {})
-            # 这里只是加载，实际使用时会在DateSelectDialog类中重新转换为QDate对象
+            # 将加载的日期应用到DateSelectDialog的基础数据中
+            if 'zhongkao' in dates and dates['zhongkao']:
+                self._update_base_dates_from_config(DateSelectDialog.base_zhongkao_dates, dates['zhongkao'])
+            if 'gaokao' in dates and dates['gaokao']:
+                self._update_base_dates_from_config(DateSelectDialog.base_gaokao_dates, dates['gaokao'])
 
             # 加载目标日期 - 完全按照配置文件中的日期，不自动调整
             target_date_str = config.get('target_date')
@@ -1033,6 +1037,26 @@ class CountdownWindow(QMainWindow):
         except Exception as e:
             print(f"加载配置文件时出错: {e}")
             self.target_date = None
+
+    @staticmethod
+    def _update_base_dates_from_config(base_dates_dict, config_dates_dict):
+        """从配置文件的日期字典更新基础日期字典"""
+        for province, exam_types in config_dates_dict.items():
+            if province not in base_dates_dict:
+                base_dates_dict[province] = {}
+
+            for exam_type, date_str in exam_types.items():
+                if date_str is None:
+                    base_dates_dict[province][exam_type] = None
+                    continue
+
+                try:
+                    # 从日期字符串(例如"2024-6-7")提取月和日
+                    year, month, day = map(int, date_str.split('-'))
+                    base_dates_dict[province][exam_type] = (month, day)
+                except (ValueError, TypeError) as e:
+                    print(f"解析日期'{date_str}'失败: {e}")
+                    continue
 
     def write_default_config(self):
         """写入默认配置，包括版本号和考试日期列表"""
@@ -1074,7 +1098,7 @@ class CountdownWindow(QMainWindow):
         try:
             # 确保配置目录存在
             os.makedirs(CONFIG_DIR, exist_ok=True)
-            
+
             target_date_str = None
             if self.target_date:
                 target_date_str = f"{self.target_date.year}-{self.target_date.month}-{self.target_date.day}"
@@ -1120,20 +1144,20 @@ class CountdownWindow(QMainWindow):
             self.exam_mode = "中考"
             self.custom_text_template = "{time}天后，未来将会怎样？"
             self.target_date = None
-            
+
             # 写入默认配置到文件
             self.write_default_config()
-            
+
             # 提示用户设置日期
             self.show_date_select_dialog()
-            
+
             # 更新界面显示
             self.update_position()
             self.update_countdown()
-            
+
             # 更新托盘菜单选项状态
             self._update_tray_menu_state()
-            
+
             print("已恢复出厂设置")
         except Exception as e:
             print(f"恢复出厂设置时出错: {e}")
@@ -1143,11 +1167,11 @@ class CountdownWindow(QMainWindow):
         # 更新位置菜单项
         for action in self.position_menu.actions():
             action.setChecked(action.property("position_value") == self.position)
-        
+
         # 更新显示模式菜单项
         for action in self.display_menu.actions():
             action.setChecked(action.property("mode_value") == self.display_mode)
-        
+
         # 更新暂停按钮状态和文本
         if self.pause_action:
             self.pause_action.setChecked(self.paused)
@@ -1206,43 +1230,6 @@ class CountdownWindow(QMainWindow):
                 self.target_date = default_date
                 self.exam_type = "文化课" if self.exam_mode == "中考" else "统一科目"
                 print(f"用户取消设置，使用默认{self.exam_mode}日期: {self.target_date.strftime('%Y-%m-%d')}")
-
-    def save_config(self):
-        """保存当前设置到配置文件"""
-        try:
-            # 确保配置目录存在
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-            
-            target_date_str = None
-            if self.target_date:
-                target_date_str = f"{self.target_date.year}-{self.target_date.month}-{self.target_date.day}"
-
-            # 保存所有考试日期列表
-            dates = {
-                "zhongkao": self._convert_to_full_dates(DateSelectDialog.base_zhongkao_dates),
-                "gaokao": self._convert_to_full_dates(DateSelectDialog.base_gaokao_dates)
-            }
-
-            config = {
-                'version': VERSION,  # 添加版本号
-                'position': self.position,
-                'precision': self.precision,
-                'display_mode': self.display_mode,
-                'window_width': self.window_width,
-                'window_height': self.window_height,
-                'target_date': target_date_str,
-                'exam_type': self.exam_type,
-                'exam_mode': self.exam_mode,
-                'custom_text_template': self.custom_text_template,
-                'dates': dates  # 保存考试日期列表
-            }
-
-            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-                json.dump(config, f, ensure_ascii=False, indent=4)
-
-            print(f"设置已保存到配置文件: {CONFIG_FILE}")
-        except Exception as e:
-            print(f"保存配置文件出错: {e}")
 
     def create_tray_icon(self):
         """创建系统托盘图标和菜单"""
@@ -1674,4 +1661,3 @@ if __name__ == "__main__":
     sys.exit(app.exec())
 
 # AI-Assisted End: GitHub Copilot - 2025/04
-
