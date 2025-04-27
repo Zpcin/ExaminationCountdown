@@ -20,7 +20,22 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                               QRadioButton, QButtonGroup, QLineEdit, QGroupBox)
 from PySide6.QtCore import Qt, QTimer, QDate
 from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QPixmap
+import socket
 
+# 确保只运行一个实例
+def ensure_single_instance():
+    try:
+        # 尝试绑定一个特定端口，如果能绑定成功则表示没有其它实例在运行
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('localhost', 45568))  # 使用一个不常用的端口
+        # 保持套接字打开状态，直到程序结束
+        return sock
+    except socket.error:
+        print("程序已经在运行中!")
+        sys.exit(0)
+
+# 保存套接字引用，防止被垃圾回收
+single_instance_socket = ensure_single_instance()
 # 配置文件路径 - 改为使用用户目录
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".countdown")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "countdown_config.json")
