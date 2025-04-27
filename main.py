@@ -6,7 +6,7 @@ AI 开发作品，无人类作者版权声明
 """
 
 # 数据与兼容版本号
-VERSION = "v3"
+VERSION = "build9"
 
 # AI-Assisted: GitHub Copilot - 2025/04
 # 本程序完全由 AI 开发，遵循 LICENSE 中的规定
