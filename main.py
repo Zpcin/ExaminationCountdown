@@ -5,8 +5,8 @@ AI 开发作品，无人类作者版权声明
 考试日期数据来源：互联网
 """
 
-# 当前版本号
-VERSION = "build8"
+# 数据与兼容版本号
+VERSION = "v3"
 
 # AI-Assisted: GitHub Copilot - 2025/04
 # 本程序完全由 AI 开发，遵循 LICENSE 中的规定
@@ -20,10 +20,14 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                               QWidget, QSystemTrayIcon, QMenu, QDialog, 
                               QDateEdit, QHBoxLayout, QComboBox,
                               QCalendarWidget, QTabWidget, QPushButton, QFrame,
-                              QRadioButton, QButtonGroup, QLineEdit, QGroupBox)
+                              QRadioButton, QButtonGroup, QLineEdit, QGroupBox,
+                              QMessageBox)
 from PySide6.QtCore import Qt, QTimer, QDate
 from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QPixmap
 import socket
+
+# 全局应用程序变量
+app_instance = None
 
 # 确保只运行一个实例
 def ensure_single_instance():
@@ -34,7 +38,17 @@ def ensure_single_instance():
         # 保持套接字打开状态，直到程序结束
         return sock
     except socket.error:
-        print("程序已经在运行中!")
+        # 创建一个临时的QApplication实例，用于显示对话框
+        global app_instance
+        if app_instance is None:
+            app_instance = QApplication(sys.argv)
+        
+        # 显示对话框提醒用户
+        QMessageBox.information(None, "程序已在运行", 
+                              "考试倒计时程序已经在运行中!\n\n请检查系统托盘区域是否有该程序图标。",
+                              QMessageBox.StandardButton.Ok)
+        
+        print("程序已经在运行中，退出本实例。")
         sys.exit(0)
 
 # 保存套接字引用，防止被垃圾回收
@@ -1047,13 +1061,13 @@ class CountdownWindow(QMainWindow):
 
             for exam_type, date_str in exam_types.items():
                 if date_str is None:
-                    base_dates_dict[province][exam_type] = None
+                    base_dates_dict[exam_type] = None
                     continue
 
                 try:
                     # 从日期字符串(例如"2024-6-7")提取月和日
                     year, month, day = map(int, date_str.split('-'))
-                    base_dates_dict[province][exam_type] = (month, day)
+                    base_dates_dict[exam_type] = (month, day)
                 except (ValueError, TypeError) as e:
                     print(f"解析日期'{date_str}'失败: {e}")
                     continue
@@ -1651,13 +1665,15 @@ class CountdownWindow(QMainWindow):
             super().closeEvent(event)
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
+    # 使用全局变量以避免重复创建QApplication
+    if app_instance is None:
+        app_instance = QApplication(sys.argv)
 
     # 确保应用程序不会在最后一个窗口关闭时退出
-    app.setQuitOnLastWindowClosed(False)
+    app_instance.setQuitOnLastWindowClosed(False)
 
     window = CountdownWindow()
     window.show()
-    sys.exit(app.exec())
+    sys.exit(app_instance.exec())
 
 # AI-Assisted End: GitHub Copilot - 2025/04
