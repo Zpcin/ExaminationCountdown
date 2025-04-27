@@ -5,6 +5,9 @@ AI 开发作品，无人类作者版权声明
 考试日期数据来源：互联网
 """
 
+# 当前版本号
+VERSION = "build8"
+
 # AI-Assisted: GitHub Copilot - 2025/04
 # 本程序完全由 AI 开发，遵循 LICENSE 中的规定
 # 详细许可证请参阅项目根目录下的 LICENSE 文件
@@ -45,6 +48,223 @@ os.makedirs(CONFIG_DIR, exist_ok=True)
 
 class DateSelectDialog(QDialog):
     """日期选择对话框"""
+    
+    # 创建基础日期字典（月份和日期）- 改为类变量
+    base_zhongkao_dates = {
+        "请选择省份或城市": {"文化课": None},
+        "北京": {
+            "文化课": (6, 24),
+            "地理生物": (6, 26),
+            "体育考试": (4, 15)
+        },
+        "上海": {
+            "文化课": (6, 14),
+            "英语听说": (5, 17),
+            "理化实验": (5, 17)
+        },
+        "天津": {
+            "文化课": (6, 21),
+            "英语听力": (5, 24)
+        },
+        "重庆": {"文化课": (6, 12)},
+        "河北": {"文化课": (6, 21)},
+        "山西": {"文化课": (6, 20)},
+        "内蒙古-呼和浩特": {"文化课": (6, 25)},
+        "内蒙古-赤峰": {"文化课": (6, 26)},
+        "辽宁": {"文化课": (6, 21)},
+        "吉林-初三": {"文化课": (6, 27)},
+        "吉林-初二": {"地理生物": (6, 30)},
+        "黑龙江-哈尔滨": {"文化课": (6, 25)},
+        "黑龙江-绥化": {"文化课": (6, 25)},
+        "江苏-南京": {"文化课": (6, 17)},
+        "江苏-宿迁": {"文化课": (6, 15)},
+        "江苏-连云港": {"文化课": (6, 14)},
+        "浙江": {"文化课": (6, 21)},
+        "浙江-杭州": {"文化课": (6, 18)},
+        "山东-济南": {"文化课": (6, 13)},
+        "山东-淄博": {"文化课": (6, 14)},
+        "安徽": {"文化课": (6, 14)},
+        "福建": {"文化课": (6, 19)},
+        "江西": {"文化课": (6, 16)},
+        "河南": {"文化课": (6, 22)},
+        "湖北-武汉": {"文化课": (6, 20)},
+        "湖北-荆州": {"文化课": (6, 20)},
+        "湖南": {"文化课": (6, 18)},
+        "广东-深圳": {"文化课": (6, 26)},
+        "广东-广州": {"文化课": (6, 30)},
+        "广西": {"文化课": (6, 24)},
+        "海南": {"文化课": (6, 25)},
+        "四川-成都": {"文化课": (6, 13)},
+        "四川-凉山": {"文化课": (6, 13)},
+        "云南": {"文化课": (6, 16)},
+        "贵州": {"文化课": (6, 21)},
+        "西藏": {"文化课": (7, 3)},
+        "陕西": {"文化课": (6, 22)},
+        "甘肃": {"文化课": (6, 16)},
+        "青海": {"文化课": (6, 16)},
+        "宁夏": {"文化课": (6, 28)},
+        "新疆": {"文化课": (6, 22)},
+    }
+
+    base_gaokao_dates = {
+        "请选择省份或城市": {"统一科目": None},
+        "新疆": {
+            "统一科目": (6, 7),
+            "文理综合": (6, 8),
+            "外语": (6, 8)
+        },
+        "西藏": {
+            "统一科目": (6, 7),
+            "文理综合": (6, 8),
+            "外语": (6, 8),
+            "藏语文": (6, 9)
+        },
+        "广东": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "江苏": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "河北": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "湖南": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "重庆": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "辽宁": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8),
+            "朝鲜语文": (6, 10)
+        },
+        "黑龙江": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "江西": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "北京": {
+            "统一科目": (6, 7),
+            "等级考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "天津": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "上海": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8),
+            "外语听说": (6, 9)
+        },
+        "浙江": {
+            "统一科目": (6, 7),
+            "技术": (6, 8),
+            "外语": (6, 8),
+            "选考科目": (6, 9)
+        },
+        "山东": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "海南": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "安徽": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "福建": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "甘肃": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "贵州": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "河南": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "湖北": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "吉林": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "内蒙古": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8),
+            "蒙古语文": (6, 10)
+        },
+        "宁夏": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "青海": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "陕西": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "四川": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "云南": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+        "广西": {
+            "统一科目": (6, 7),
+            "选考科目": (6, 9),
+            "外语": (6, 8)
+        },
+    }
+
     def __init__(self, parent=None, exam_mode="中考"):
         super().__init__(parent)
 
@@ -274,222 +494,6 @@ class DateSelectDialog(QDialog):
                 height: 18px;
             }
         """)
-
-        # 创建基础日期字典（月份和日期）
-        self.base_zhongkao_dates = {
-            "请选择省份或城市": {"文化课": None},
-            "北京": {
-                "文化课": (6, 24),
-                "地理生物": (6, 26),
-                "体育考试": (4, 15)
-            },
-            "上海": {
-                "文化课": (6, 14),
-                "英语听说": (5, 17),
-                "理化实验": (5, 17)
-            },
-            "天津": {
-                "文化课": (6, 21),
-                "英语听力": (5, 24)
-            },
-            "重庆": {"文化课": (6, 12)},
-            "河北": {"文化课": (6, 21)},
-            "山西": {"文化课": (6, 20)},
-            "内蒙古-呼和浩特": {"文化课": (6, 25)},
-            "内蒙古-赤峰": {"文化课": (6, 26)},
-            "辽宁": {"文化课": (6, 21)},
-            "吉林-初三": {"文化课": (6, 27)},
-            "吉林-初二": {"地理生物": (6, 30)},
-            "黑龙江-哈尔滨": {"文化课": (6, 25)},
-            "黑龙江-绥化": {"文化课": (6, 25)},
-            "江苏-南京": {"文化课": (6, 17)},
-            "江苏-宿迁": {"文化课": (6, 15)},
-            "江苏-连云港": {"文化课": (6, 14)},
-            "浙江": {"文化课": (6, 21)},
-            "浙江-杭州": {"文化课": (6, 18)},
-            "山东-济南": {"文化课": (6, 13)},
-            "山东-淄博": {"文化课": (6, 14)},
-            "安徽": {"文化课": (6, 14)},
-            "福建": {"文化课": (6, 19)},
-            "江西": {"文化课": (6, 16)},
-            "河南": {"文化课": (6, 22)},
-            "湖北-武汉": {"文化课": (6, 20)},
-            "湖北-荆州": {"文化课": (6, 20)},
-            "湖南": {"文化课": (6, 18)},
-            "广东-深圳": {"文化课": (6, 26)},
-            "广东-广州": {"文化课": (6, 30)},
-            "广西": {"文化课": (6, 24)},
-            "海南": {"文化课": (6, 25)},
-            "四川-成都": {"文化课": (6, 13)},
-            "四川-凉山": {"文化课": (6, 13)},
-            "云南": {"文化课": (6, 16)},
-            "贵州": {"文化课": (6, 21)},
-            "西藏": {"文化课": (7, 3)},
-            "陕西": {"文化课": (6, 22)},
-            "甘肃": {"文化课": (6, 16)},
-            "青海": {"文化课": (6, 16)},
-            "宁夏": {"文化课": (6, 28)},
-            "新疆": {"文化课": (6, 22)},
-        }
-
-        self.base_gaokao_dates = {
-            "请选择省份或城市": {"统一科目": None},
-            "新疆": {
-                "统一科目": (6, 7),
-                "文理综合": (6, 8),
-                "外语": (6, 8)
-            },
-            "西藏": {
-                "统一科目": (6, 7),
-                "文理综合": (6, 8),
-                "外语": (6, 8),
-                "藏语文": (6, 9)
-            },
-            "广东": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "江苏": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "河北": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "湖南": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "重庆": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "辽宁": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8),
-                "朝鲜语文": (6, 10)
-            },
-            "黑龙江": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "江西": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "北京": {
-                "统一科目": (6, 7),
-                "等级考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "天津": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "上海": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8),
-                "外语听说": (6, 9)
-            },
-            "浙江": {
-                "统一科目": (6, 7),
-                "技术": (6, 8),
-                "外语": (6, 8),
-                "选考科目": (6, 9)
-            },
-            "山东": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "海南": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "安徽": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "福建": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "甘肃": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "贵州": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "河南": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "湖北": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "吉林": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "内蒙古": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8),
-                "蒙古语文": (6, 10)
-            },
-            "宁夏": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "青海": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "陕西": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "四川": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "云南": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-            "广西": {
-                "统一科目": (6, 7),
-                "选考科目": (6, 9),
-                "外语": (6, 8)
-            },
-        }
 
         # 转换基础日期为完整的 QDate 对象
         self.zhongkao_dates = self._convert_to_full_dates(self.base_zhongkao_dates)
@@ -957,13 +961,197 @@ class CountdownWindow(QMainWindow):
         self.create_tray_icon()
 
     @staticmethod
-    def get_exam_year():
-        """根据当前日期智能判断考试年份"""
+    def _convert_to_full_dates(base_dates):
+        """将基础日期转换为包含年份的完整字符串表示"""
+        full_dates = {}
         current_date = datetime.datetime.now()
-        current_year = current_date.year
 
-        # 根据当前日期判断是否过了6月份
-        return current_year + 1 if current_date.month > 6 else current_year
+        for province, exam_types in base_dates.items():
+            full_dates[province] = {}
+            for exam_type, date_tuple in exam_types.items():
+                if date_tuple is None:
+                    full_dates[province][exam_type] = None
+                    continue
+
+                month, day = date_tuple
+                # 计算正确的年份
+                year = current_date.year
+
+                # 如果当前日期已过这个月日，使用明年
+                if current_date > datetime.datetime(year, month, day):
+                    year += 1
+
+                # 保存为字符串格式，适合JSON存储
+                full_dates[province][exam_type] = f"{year}-{month}-{day}"
+
+        return full_dates
+
+    def load_config(self):
+        """从配置文件加载设置"""
+        if not os.path.exists(CONFIG_FILE):
+            print(f"配置文件不存在，将使用默认设置。配置路径: {CONFIG_FILE}")
+            self.write_default_config()
+            return
+
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+
+            # 检查版本号
+            file_version = config.get("version", "0")
+            if file_version < VERSION:
+                print(f"检测到新版本({VERSION})，更新配置文件...")
+                self.write_default_config()
+                return
+            
+            # 版本号相同，加载配置，并尊重配置文件中的日期设置
+            self.position = config.get('position', self.position)
+            self.precision = config.get('precision', self.precision)
+            self.display_mode = config.get('display_mode', self.display_mode)
+            self.window_width = config.get('window_width', self.window_width)
+            self.window_height = config.get('window_height', self.window_height)
+            self.exam_type = config.get('exam_type', self.exam_type)
+            self.exam_mode = config.get('exam_mode', self.exam_mode)
+            self.custom_text_template = config.get('custom_text_template', self.custom_text_template)
+
+            # 尝试加载考试日期列表
+            dates = config.get('dates', {})
+            # 这里只是加载，实际使用时会在DateSelectDialog类中重新转换为QDate对象
+
+            # 加载目标日期 - 完全按照配置文件中的日期，不自动调整
+            target_date_str = config.get('target_date')
+            if target_date_str:
+                try:
+                    date_parts = list(map(int, target_date_str.split('-')))
+                    self.target_date = datetime.datetime(date_parts[0], date_parts[1], date_parts[2])
+                    print(f"按配置文件加载日期: {self.target_date.strftime('%Y-%m-%d')}")
+                except (ValueError, IndexError) as e:
+                    print(f"日期解析错误: {e}，将使用默认日期")
+                    self.target_date = None
+
+            print(f"成功从配置文件加载设置: {CONFIG_FILE}")
+        except Exception as e:
+            print(f"加载配置文件时出错: {e}")
+            self.target_date = None
+
+    def write_default_config(self):
+        """写入默认配置，包括版本号和考试日期列表"""
+        try:
+            # 确保配置目录存在
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+
+            # 默认考试日期列表 - 使用本类的转换方法
+            default_dates = {
+                "zhongkao": self._convert_to_full_dates(DateSelectDialog.base_zhongkao_dates),
+                "gaokao": self._convert_to_full_dates(DateSelectDialog.base_gaokao_dates)
+            }
+
+            # 构建默认配置
+            config = {
+                "version": VERSION,
+                "position": self.position,
+                "precision": self.precision,
+                "display_mode": self.display_mode,
+                "window_width": self.window_width,
+                "window_height": self.window_height,
+                "target_date": None,
+                "exam_type": self.exam_type,
+                "exam_mode": self.exam_mode,
+                "custom_text_template": self.custom_text_template,
+                "dates": default_dates
+            }
+
+            # 写入配置文件
+            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=4)
+
+            print(f"默认配置已写入: {CONFIG_FILE}")
+        except Exception as e:
+            print(f"写入默认配置时出错: {e}")
+
+    def save_config(self):
+        """保存当前设置到配置文件"""
+        try:
+            # 确保配置目录存在
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            
+            target_date_str = None
+            if self.target_date:
+                target_date_str = f"{self.target_date.year}-{self.target_date.month}-{self.target_date.day}"
+
+            # 保存所有考试日期列表
+            dates = {
+                "zhongkao": self._convert_to_full_dates(DateSelectDialog.base_zhongkao_dates),
+                "gaokao": self._convert_to_full_dates(DateSelectDialog.base_gaokao_dates)
+            }
+
+            config = {
+                'version': VERSION,  # 添加版本号
+                'position': self.position,
+                'precision': self.precision,
+                'display_mode': self.display_mode,
+                'window_width': self.window_width,
+                'window_height': self.window_height,
+                'target_date': target_date_str,
+                'exam_type': self.exam_type,
+                'exam_mode': self.exam_mode,
+                'custom_text_template': self.custom_text_template,
+                'dates': dates  # 保存考试日期列表
+            }
+
+            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=4)
+
+            print(f"设置已保存到配置文件: {CONFIG_FILE}")
+        except Exception as e:
+            print(f"保存配置文件出错: {e}")
+
+    def reset_to_factory(self):
+        """恢复出厂设置"""
+        try:
+            # 重置所有设置为默认值
+            self.position = "left_top"
+            self.window_width = 300
+            self.window_height = 80
+            self.precision = 5
+            self.display_mode = "watermark"
+            self.paused = False
+            self.exam_type = "文化课"
+            self.exam_mode = "中考"
+            self.custom_text_template = "{time}天后，未来将会怎样？"
+            self.target_date = None
+            
+            # 写入默认配置到文件
+            self.write_default_config()
+            
+            # 提示用户设置日期
+            self.show_date_select_dialog()
+            
+            # 更新界面显示
+            self.update_position()
+            self.update_countdown()
+            
+            # 更新托盘菜单选项状态
+            self._update_tray_menu_state()
+            
+            print("已恢复出厂设置")
+        except Exception as e:
+            print(f"恢复出厂设置时出错: {e}")
+
+    def _update_tray_menu_state(self):
+        """更新托盘菜单中的选项状态"""
+        # 更新位置菜单项
+        for action in self.position_menu.actions():
+            action.setChecked(action.property("position_value") == self.position)
+        
+        # 更新显示模式菜单项
+        for action in self.display_menu.actions():
+            action.setChecked(action.property("mode_value") == self.display_mode)
+        
+        # 更新暂停按钮状态和文本
+        if self.pause_action:
+            self.pause_action.setChecked(self.paused)
+            self.pause_action.setText("恢复更新" if self.paused else "暂停更新")
 
     def show_date_select_dialog(self):
         """显示日期选择对话框"""
@@ -1019,54 +1207,6 @@ class CountdownWindow(QMainWindow):
                 self.exam_type = "文化课" if self.exam_mode == "中考" else "统一科目"
                 print(f"用户取消设置，使用默认{self.exam_mode}日期: {self.target_date.strftime('%Y-%m-%d')}")
 
-    def load_config(self):
-        """从配置文件加载设置"""
-        if not os.path.exists(CONFIG_FILE):
-            print(f"配置文件不存在，将使用默认设置。配置路径: {CONFIG_FILE}")
-            return
-
-        try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-
-            # 加载配置
-            self.position = config.get('position', self.position)
-            self.precision = config.get('precision', self.precision)
-            self.display_mode = config.get('display_mode', self.display_mode)
-            self.window_width = config.get('window_width', self.window_width)
-            self.window_height = config.get('window_height', self.window_height)
-            self.exam_type = config.get('exam_type', self.exam_type)
-            self.exam_mode = config.get('exam_mode', self.exam_mode)
-            self.custom_text_template = config.get('custom_text_template', self.custom_text_template)
-
-            # 加载目标日期
-            target_date_str = config.get('target_date')
-            if target_date_str:
-                try:
-                    date_parts = list(map(int, target_date_str.split('-')))
-                    loaded_date = datetime.datetime(date_parts[0], date_parts[1], date_parts[2])
-
-                    # 检查加载的日期是否已过期
-                    current_date = datetime.datetime.now()
-                    if loaded_date < current_date:
-                        # 使用相同的月日，年份加一
-                        self.target_date = datetime.datetime(
-                            current_date.year + 1,
-                            loaded_date.month,
-                            loaded_date.day
-                        )
-                        print(f"检测到过期日期，已更新为下一年度: {self.target_date.strftime('%Y-%m-%d')}")
-                    else:
-                        self.target_date = loaded_date
-                except (ValueError, IndexError) as e:
-                    print(f"日期解析错误: {e}，将使用默认日期")
-                    self.target_date = None
-
-            print(f"成功从配置文件加载设置: {CONFIG_FILE}")
-        except Exception as e:
-            print(f"加载配置文件时出错: {e}")
-            self.target_date = None
-
     def save_config(self):
         """保存当前设置到配置文件"""
         try:
@@ -1077,7 +1217,14 @@ class CountdownWindow(QMainWindow):
             if self.target_date:
                 target_date_str = f"{self.target_date.year}-{self.target_date.month}-{self.target_date.day}"
 
+            # 保存所有考试日期列表
+            dates = {
+                "zhongkao": self._convert_to_full_dates(DateSelectDialog.base_zhongkao_dates),
+                "gaokao": self._convert_to_full_dates(DateSelectDialog.base_gaokao_dates)
+            }
+
             config = {
+                'version': VERSION,  # 添加版本号
                 'position': self.position,
                 'precision': self.precision,
                 'display_mode': self.display_mode,
@@ -1086,7 +1233,8 @@ class CountdownWindow(QMainWindow):
                 'target_date': target_date_str,
                 'exam_type': self.exam_type,
                 'exam_mode': self.exam_mode,
-                'custom_text_template': self.custom_text_template
+                'custom_text_template': self.custom_text_template,
+                'dates': dates  # 保存考试日期列表
             }
 
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -1192,6 +1340,11 @@ class CountdownWindow(QMainWindow):
         change_date_action = QAction("修改日期设置", self)
         change_date_action.triggered.connect(self.show_date_select_dialog)
         self.tray_menu.addAction(change_date_action)
+
+        # 在退出选项前添加恢复出厂设置选项
+        factory_reset_action = QAction("恢复出厂设置", self)
+        factory_reset_action.triggered.connect(self.reset_to_factory)
+        self.tray_menu.addAction(factory_reset_action)
 
         # 添加退出选项
         quit_action = QAction("退出", self)
@@ -1521,3 +1674,4 @@ if __name__ == "__main__":
     sys.exit(app.exec())
 
 # AI-Assisted End: GitHub Copilot - 2025/04
+
