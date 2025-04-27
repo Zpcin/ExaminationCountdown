@@ -16,8 +16,9 @@ import sys
 import datetime
 import json
 import os
-from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout, 
-                              QWidget, QSystemTrayIcon, QMenu, QDialog, 
+import ctypes  # 添加ctypes用于调用Windows API
+from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
+                              QWidget, QSystemTrayIcon, QMenu, QDialog,
                               QDateEdit, QHBoxLayout, QComboBox,
                               QCalendarWidget, QTabWidget, QPushButton, QFrame,
                               QRadioButton, QButtonGroup, QLineEdit, QGroupBox,
@@ -42,12 +43,12 @@ def ensure_single_instance():
         global app_instance
         if app_instance is None:
             app_instance = QApplication(sys.argv)
-        
+
         # 显示对话框提醒用户
-        QMessageBox.information(None, "程序已在运行", 
+        QMessageBox.information(None, "程序已在运行",
                               "考试倒计时程序已经在运行中!\n\n请检查系统托盘区域是否有该程序图标。",
                               QMessageBox.StandardButton.Ok)
-        
+
         print("程序已经在运行中，退出本实例。")
         sys.exit(0)
 
@@ -60,9 +61,22 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "countdown_config.json")
 # 确保配置目录存在
 os.makedirs(CONFIG_DIR, exist_ok=True)
 
+# 添加隐藏文件夹函数
+def hide_directory(directory_path):
+    """在Windows环境下设置文件夹为隐藏状态"""
+    try:
+        # Windows 的 FILE_ATTRIBUTE_HIDDEN 属性值为 2
+        ctypes.windll.kernel32.SetFileAttributesW(directory_path, 2)
+        print(f"已将文件夹设为隐藏: {directory_path}")
+    except Exception as e:
+        print(f"设置文件夹隐藏属性时出错: {e}")
+
+# 隐藏配置目录
+hide_directory(CONFIG_DIR)
+
 class DateSelectDialog(QDialog):
     """日期选择对话框"""
-    
+
     # 创建基础日期字典（月份和日期）- 改为类变量
     base_zhongkao_dates = {
         "请选择省份或城市": {"文化课": None},
@@ -747,7 +761,7 @@ class DateSelectDialog(QDialog):
         self.custom_group.setVisible(is_custom)
         # 保持标签页始终可见，确保日历可用
         self.tab_widget.setVisible(True)
-        
+
         if is_custom:
             # 在自定义模式下，显示日历标签页
             self.tab_widget.setCurrentIndex(1)  # 日历标签页
@@ -1017,7 +1031,7 @@ class CountdownWindow(QMainWindow):
                 print(f"检测到新版本({VERSION})，更新配置文件...")
                 self.write_default_config()
                 return
-            
+
             # 版本号相同，加载配置，并尊重配置文件中的日期设置
             self.position = config.get('position', self.position)
             self.precision = config.get('precision', self.precision)
