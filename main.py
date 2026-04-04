@@ -1311,6 +1311,13 @@ class DateSelectDialog(QDialog):
         if parent is None or not hasattr(parent, "save_config"):
             return
 
+        old_display_mode = getattr(parent, "display_mode", "watermark")
+        old_position = getattr(parent, "position", "left_top")
+        old_precision = getattr(parent, "precision", 5)
+        old_font_scale = getattr(parent, "font_scale", 100)
+        old_watermark_color = getattr(parent, "watermark_color", DEFAULT_WATERMARK_COLOR)
+        old_visible_color = getattr(parent, "visible_color", DEFAULT_VISIBLE_COLOR)
+
         selected_date = self.get_selected_date()
 
         current_date = datetime.datetime.now()
@@ -1343,12 +1350,28 @@ class DateSelectDialog(QDialog):
         parent.watermark_color = self.watermark_color
         parent.visible_color = self.visible_color
         parent.font_color = self.visible_color
-        if hasattr(parent, "apply_countdown_font"):
+        if hasattr(parent, "apply_countdown_font") and parent.font_scale != old_font_scale:
             parent.apply_countdown_font()
-        if hasattr(parent, "update_timer_interval"):
+        if hasattr(parent, "update_timer_interval") and parent.precision != old_precision:
             parent.update_timer_interval()
-        if hasattr(parent, "update_position"):
+        if hasattr(parent, "update_position") and parent.position != old_position:
             parent.update_position()
+
+        appearance_changes = []
+        if parent.display_mode != old_display_mode:
+            appearance_changes.append(f"显示模式 {old_display_mode} -> {parent.display_mode}")
+        if parent.position != old_position:
+            appearance_changes.append(f"窗口位置 {old_position} -> {parent.position}")
+        if parent.precision != old_precision:
+            appearance_changes.append(f"精度 {old_precision} -> {parent.precision}")
+        if parent.font_scale != old_font_scale:
+            appearance_changes.append(f"字体缩放 {old_font_scale}% -> {parent.font_scale}%")
+        if parent.watermark_color != old_watermark_color:
+            appearance_changes.append(f"水印颜色 {old_watermark_color} -> {parent.watermark_color}")
+        if parent.visible_color != old_visible_color:
+            appearance_changes.append(f"高可见度颜色 {old_visible_color} -> {parent.visible_color}")
+        if appearance_changes:
+            print("外观设置已更新: " + "; ".join(appearance_changes))
 
         parent.save_config()
         if hasattr(parent, "update_countdown"):
@@ -1941,7 +1964,11 @@ class CountdownWindow(QMainWindow):
         action = self.sender()
         if action:
             # 获取新的位置
-            self.position = action.property("position_value")
+            new_position = action.property("position_value")
+            if new_position == self.position:
+                return
+            old_position = self.position
+            self.position = new_position
 
             # 更新菜单项选中状态
             for act in self.position_menu.actions():
@@ -1949,6 +1976,8 @@ class CountdownWindow(QMainWindow):
 
             # 更新窗口位置
             self.update_position()
+
+            print(f"外观设置更新: 窗口位置 {old_position} -> {self.position}")
 
             # 保存配置
             self.save_config()
@@ -1991,7 +2020,11 @@ class CountdownWindow(QMainWindow):
         action = self.sender()
         if action:
             # 获取新的显示模式
-            self.display_mode = action.property("mode_value")
+            new_mode = action.property("mode_value")
+            if new_mode == self.display_mode:
+                return
+            old_mode = self.display_mode
+            self.display_mode = new_mode
 
             # 更新菜单项选中状态 - 使用类属性而非findChild
             for act in self.display_menu.actions():
@@ -1999,6 +2032,8 @@ class CountdownWindow(QMainWindow):
 
             # 更新显示
             self.update_countdown()
+
+            print(f"外观设置更新: 显示模式 {old_mode} -> {self.display_mode}")
 
             # 保存配置
             self.save_config()
@@ -2017,7 +2052,10 @@ class CountdownWindow(QMainWindow):
         action = self.sender()
         if action:
             old_precision = self.precision
-            self.precision = action.property("precision_value")
+            new_precision = action.property("precision_value")
+            if new_precision == old_precision:
+                return
+            self.precision = new_precision
 
             # 打印日志以便调试
             print(f"正在切换精度：从 {old_precision} 位小数到 {self.precision} 位小数")
