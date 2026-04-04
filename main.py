@@ -22,9 +22,9 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                               QHBoxLayout, QComboBox,
                               QStackedWidget, QPushButton, QFrame,
                               QRadioButton, QButtonGroup, QLineEdit,
-                              QMessageBox)
+                              QMessageBox, QSizePolicy, QSlider, QColorDialog)
 from PySide6.QtCore import Qt, QTimer, QDate
-from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QActionGroup, QPixmap, QPainter, QPen, QIntValidator
+from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QActionGroup, QPixmap, QPainter, QPen, QIntValidator, QFontMetrics
 from qfluentwidgets import (
     CardWidget,
     CheckableSystemTrayMenu,
@@ -356,6 +356,51 @@ class DateSelectDialog(QDialog):
                 font-size: 12px;
                 color: #666666;
             }
+            #calendarStrip {
+                border: 1px solid #d2d0ce;
+                border-radius: 8px;
+                background-color: #ffffff;
+                padding: 0 10px;
+            }
+            #regionYearCombo {
+                border: 1px solid #d2d0ce;
+                border-radius: 8px;
+                background-color: #ffffff;
+                padding: 2px 8px;
+            }
+            #regionYearCombo QLineEdit {
+                border: none;
+                background: transparent;
+                padding: 0;
+                margin: 0;
+            }
+            #positionPreview {
+                border: 1px solid #d2d0ce;
+                border-radius: 16px;
+                background: rgba(250, 249, 248, 0.9);
+            }
+            QPushButton#positionDot {
+                min-width: 22px;
+                max-width: 22px;
+                min-height: 22px;
+                max-height: 22px;
+                border-radius: 11px;
+                border: 1px solid #c8c6c4;
+                background: #ffffff;
+                font-size: 10px;
+                color: #9a9a9a;
+            }
+            QPushButton#positionDot:checked {
+                background: #0f6cbd;
+                border: 1px solid #0f6cbd;
+                color: #ffffff;
+            }
+            QLabel#colorPreview {
+                border: 1px solid #d2d0ce;
+                border-radius: 8px;
+                min-height: 26px;
+                padding: 2px 8px;
+            }
         """)
 
         # 转换基础日期为完整的 QDate 对象
@@ -370,6 +415,13 @@ class DateSelectDialog(QDialog):
         self.custom_text_template = "{time}天后，未来将会怎样？"
         if parent and hasattr(parent, "custom_text_template") and parent.custom_text_template:
             self.custom_text_template = parent.custom_text_template
+
+        # 显示与外观设置初始值
+        self.display_mode = getattr(parent, "display_mode", "watermark") if parent else "watermark"
+        self.window_position = getattr(parent, "position", "left_top") if parent else "left_top"
+        self.display_precision = getattr(parent, "precision", 5) if parent else 5
+        self.font_scale = getattr(parent, "font_scale", 100) if parent else 100
+        self.font_color = getattr(parent, "font_color", "#0f1419") if parent else "#0f1419"
 
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
@@ -440,6 +492,7 @@ class DateSelectDialog(QDialog):
         region_left_layout.addWidget(year_label)
 
         self.region_year_combo = EditableComboBox()
+        self.region_year_combo.setObjectName("regionYearCombo")
         FluentStyleSheet.COMBO_BOX.apply(self.region_year_combo)
         current_year = datetime.datetime.now().year
         year_items = [str(y) for y in range(current_year - 8, current_year + 16)]
@@ -496,21 +549,17 @@ class DateSelectDialog(QDialog):
         self.region_preview_label.setObjectName("hintLabel")
         region_right_layout.addWidget(self.region_preview_label)
 
-        self.region_confirm_button = PrimaryPushButton()
-        self.region_confirm_button.setText("确认地区选择")
-        self.region_confirm_button.clicked.connect(self.accept)
+        region_note_label = QLabel("注意：以上考试日期信息来自网络整理，仅供参考。\n"
+                  "各地考试安排可能会有调整，请以当地教育部门最新通知为准。")
+        region_note_label.setObjectName("noteLabel")
+        region_note_label.setWordWrap(True)
+        region_right_layout.addWidget(region_note_label)
+
         region_right_layout.addStretch(1)
-        region_right_layout.addWidget(self.region_confirm_button)
 
         region_body.addWidget(region_left_card, 2)
         region_body.addWidget(region_right_card, 1)
         region_layout.addLayout(region_body)
-
-        region_note_label = QLabel("注意：以上考试日期信息来自网络整理，仅供参考。\n"
-                      "各地考试安排可能会有调整，请以当地教育部门最新通知为准。")
-        region_note_label.setObjectName("noteLabel")
-        region_note_label.setWordWrap(True)
-        region_layout.addWidget(region_note_label)
 
         self.selector_stack.addWidget(region_page)
 
@@ -521,6 +570,7 @@ class DateSelectDialog(QDialog):
         calendar_layout.setSpacing(10)
 
         self.calendar_widget = FastCalendarPicker()
+        self.calendar_widget.setObjectName("calendarStrip")
         self.calendar_widget.setDate(QDate.currentDate().addMonths(3))
         self.calendar_widget.setFixedHeight(36)
         self.calendar_widget.setMaximumWidth(320)
@@ -559,27 +609,116 @@ class DateSelectDialog(QDialog):
 
         calendar_layout.addStretch(1)
 
-        # 按钮布局
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(10)
-        button_layout.setContentsMargins(0, 2, 0, 0)
-
-        # 自定义确定和取消按钮，替代标准按钮盒
-        ok_button = PrimaryPushButton()
-        ok_button.setText("确定")
-        ok_button.setProperty("class", "accent")
-        ok_button.clicked.connect(self.accept)
-        button_layout.addWidget(ok_button)
-
-        cancel_button = PushButton()
-        cancel_button.setText("取消")
-        cancel_button.clicked.connect(self.reject)
-        button_layout.addWidget(cancel_button)
-
-        calendar_layout.addLayout(button_layout)
-
         # 日期页就是日历页 + 自定义文本
         self.selector_stack.addWidget(calendar_page)
+
+        # 显示与外观页
+        appearance_page = QWidget()
+        appearance_layout = QVBoxLayout(appearance_page)
+        appearance_layout.setContentsMargins(0, 0, 0, 0)
+        appearance_layout.setSpacing(10)
+
+        appearance_card = CardWidget()
+        appearance_card_layout = QVBoxLayout(appearance_card)
+        appearance_card_layout.setContentsMargins(12, 10, 12, 12)
+        appearance_card_layout.setSpacing(10)
+
+        appearance_title = QLabel("显示与外观")
+        appearance_title.setObjectName("sectionTitle")
+        appearance_card_layout.addWidget(appearance_title)
+
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("显示模式:"))
+        self.watermark_mode_radio = RadioButton()
+        self.watermark_mode_radio.setText("水印")
+        self.visible_mode_radio = RadioButton()
+        self.visible_mode_radio.setText("高可见度")
+        self.display_mode_group = QButtonGroup(self)
+        self.display_mode_group.addButton(self.watermark_mode_radio)
+        self.display_mode_group.addButton(self.visible_mode_radio)
+        self.watermark_mode_radio.setChecked(self.display_mode == "watermark")
+        self.visible_mode_radio.setChecked(self.display_mode == "visible")
+        mode_row.addWidget(self.watermark_mode_radio)
+        mode_row.addWidget(self.visible_mode_radio)
+        mode_row.addStretch(1)
+        appearance_card_layout.addLayout(mode_row)
+
+        precision_row = QHBoxLayout()
+        precision_row.addWidget(QLabel("精度:"))
+        self.precision_combo = ComboBox()
+        FluentStyleSheet.COMBO_BOX.apply(self.precision_combo)
+        for i in range(9):
+            self.precision_combo.addItem(f"{i}位小数")
+        self.precision_combo.setCurrentIndex(max(0, min(8, int(self.display_precision))))
+        precision_row.addWidget(self.precision_combo)
+        precision_row.addStretch(1)
+        appearance_card_layout.addLayout(precision_row)
+
+        scale_row = QHBoxLayout()
+        scale_row.addWidget(QLabel("字体缩放:"))
+        self.font_scale_slider = QSlider(Qt.Orientation.Horizontal)
+        self.font_scale_slider.setRange(80, 160)
+        self.font_scale_slider.setValue(max(80, min(160, int(self.font_scale))))
+        self.font_scale_value_label = QLabel(f"{self.font_scale_slider.value()}%")
+        self.font_scale_slider.valueChanged.connect(
+            lambda v: self.font_scale_value_label.setText(f"{v}%")
+        )
+        scale_row.addWidget(self.font_scale_slider, 1)
+        scale_row.addWidget(self.font_scale_value_label)
+        appearance_card_layout.addLayout(scale_row)
+
+        color_row = QHBoxLayout()
+        color_row.addWidget(QLabel("字体颜色:"))
+        self.font_color_button = PushButton("选择颜色")
+        self.font_color_button.clicked.connect(self.pick_font_color)
+        color_row.addWidget(self.font_color_button)
+        self.color_preview_label = QLabel(self.font_color)
+        self.color_preview_label.setObjectName("colorPreview")
+        self._update_color_preview()
+        color_row.addWidget(self.color_preview_label, 1)
+        appearance_card_layout.addLayout(color_row)
+
+        position_title = QLabel("窗口位置")
+        position_title.setObjectName("sectionTitle")
+        appearance_card_layout.addWidget(position_title)
+
+        position_preview = QFrame()
+        position_preview.setObjectName("positionPreview")
+        position_preview.setFixedSize(280, 170)
+        position_layout = QVBoxLayout(position_preview)
+        position_layout.setContentsMargins(12, 10, 12, 10)
+        position_layout.setSpacing(10)
+
+        self.position_buttons = {}
+        top_row = QHBoxLayout()
+        bottom_row = QHBoxLayout()
+
+        self.position_buttons["left_top"] = QPushButton("●")
+        self.position_buttons["right_top"] = QPushButton("●")
+        self.position_buttons["left_bottom"] = QPushButton("●")
+        self.position_buttons["right_bottom"] = QPushButton("●")
+
+        for key, btn in self.position_buttons.items():
+            btn.setObjectName("positionDot")
+            btn.setCheckable(True)
+            btn.clicked.connect(lambda _checked, p=key: self.set_window_position(p))
+
+        top_row.addWidget(self.position_buttons["left_top"])
+        top_row.addStretch(1)
+        top_row.addWidget(self.position_buttons["right_top"])
+        bottom_row.addWidget(self.position_buttons["left_bottom"])
+        bottom_row.addStretch(1)
+        bottom_row.addWidget(self.position_buttons["right_bottom"])
+
+        position_layout.addLayout(top_row)
+        position_layout.addStretch(1)
+        position_layout.addLayout(bottom_row)
+        appearance_card_layout.addWidget(position_preview)
+        self._refresh_position_buttons()
+
+        appearance_layout.addWidget(appearance_card)
+        appearance_layout.addStretch(1)
+        self.selector_stack.addWidget(appearance_page)
 
         self.selector_nav.addItem(
             routeKey="region",
@@ -595,6 +734,37 @@ class DateSelectDialog(QDialog):
             onClick=lambda: self.set_selector_page(1),
             tooltip="按日期选择"
         )
+        self.selector_nav.addItem(
+            routeKey="display",
+            icon=FIF.BRUSH,
+            text="显示与外观",
+            onClick=lambda: self.set_selector_page(2),
+            tooltip="显示与外观"
+        )
+
+        # 全局按钮布局：所有页面都可见
+        global_button_layout = QHBoxLayout()
+        global_button_layout.setSpacing(8)
+        global_button_layout.setContentsMargins(0, 4, 0, 0)
+
+        global_button_layout.addStretch(1)
+
+        self.global_save_button = PrimaryPushButton()
+        self.global_save_button.setText("保存")
+        self.global_save_button.setProperty("class", "accent")
+        self.global_save_button.setFixedWidth(86)
+        self.global_save_button.setFixedHeight(32)
+        self.global_save_button.clicked.connect(self.save_current_selection)
+        global_button_layout.addWidget(self.global_save_button)
+
+        self.global_close_button = PushButton()
+        self.global_close_button.setText("关闭")
+        self.global_close_button.setFixedWidth(78)
+        self.global_close_button.setFixedHeight(32)
+        self.global_close_button.clicked.connect(self.reject)
+        global_button_layout.addWidget(self.global_close_button)
+
+        layout.addLayout(global_button_layout)
 
         # 根据当前选择的模式更新界面状态
         self.update_ui_based_on_mode(exam_mode)
@@ -646,6 +816,34 @@ class DateSelectDialog(QDialog):
     def set_selector_page(self, index):
         """切换右侧内容页面"""
         self.selector_stack.setCurrentIndex(index)
+
+    def set_window_position(self, position):
+        """设置窗口位置并刷新按钮状态"""
+        self.window_position = position
+        self._refresh_position_buttons()
+
+    def _refresh_position_buttons(self):
+        """刷新位置按钮选中状态"""
+        if not hasattr(self, "position_buttons"):
+            return
+        for key, btn in self.position_buttons.items():
+            btn.setChecked(key == self.window_position)
+
+    def pick_font_color(self):
+        """选择字体颜色"""
+        color = QColorDialog.getColor(QColor(self.font_color), self, "选择倒计时字体颜色")
+        if color.isValid():
+            self.font_color = color.name()
+            self._update_color_preview()
+
+    def _update_color_preview(self):
+        """刷新颜色预览"""
+        if not hasattr(self, "color_preview_label"):
+            return
+        self.color_preview_label.setText(self.font_color)
+        self.color_preview_label.setStyleSheet(
+            f"background: {self.font_color}; color: #ffffff; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 8px; padding: 2px 8px;"
+        )
 
     def on_region_year_changed(self, year_text):
         """地区页年份变化时更新当前日期"""
@@ -839,6 +1037,65 @@ class DateSelectDialog(QDialog):
             return self.custom_text_input.text()
         return None
 
+    def save_current_selection(self):
+        """立即保存当前设置到父窗口，但不关闭对话框"""
+        parent = self.parent()
+        if parent is None or not hasattr(parent, "save_config"):
+            return
+
+        selected_date = self.get_selected_date()
+
+        current_date = datetime.datetime.now()
+        if selected_date < current_date:
+            selected_date = datetime.datetime(
+                current_date.year + 1,
+                selected_date.month,
+                selected_date.day
+            )
+
+        parent.target_date = selected_date
+        parent.exam_mode = self.get_selected_exam_mode()
+
+        if parent.exam_mode == "自定义":
+            parent.custom_text_template = self.get_custom_text_template() or parent.custom_text_template
+            parent.exam_type = "自定义"
+        else:
+            parent.exam_type = self.get_selected_exam_type()
+
+        if parent.exam_mode == "自定义":
+            parent.setWindowTitle("自定义倒计时")
+        else:
+            parent.setWindowTitle(f"{parent.exam_mode}倒计时")
+
+        # 保存显示与外观设置
+        parent.display_mode = "visible" if self.visible_mode_radio.isChecked() else "watermark"
+        parent.position = self.window_position
+        parent.precision = self.precision_combo.currentIndex()
+        parent.font_scale = self.font_scale_slider.value()
+        parent.font_color = self.font_color
+        if hasattr(parent, "apply_countdown_font"):
+            parent.apply_countdown_font()
+        if hasattr(parent, "update_timer_interval"):
+            parent.update_timer_interval()
+        if hasattr(parent, "update_position"):
+            parent.update_position()
+
+        parent.save_config()
+        if hasattr(parent, "update_countdown"):
+            parent.update_countdown()
+        if hasattr(parent, "_update_tray_menu_state"):
+            parent._update_tray_menu_state()
+
+    def reject(self):
+        """关闭对话框前自动保存当前设置"""
+        self.save_current_selection()
+        super().reject()
+
+    def closeEvent(self, event):
+        """点击右上角关闭按钮时自动保存当前设置"""
+        self.save_current_selection()
+        super().closeEvent(event)
+
 class CountdownWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -866,6 +1123,8 @@ class CountdownWindow(QMainWindow):
         self.window_height = 80
         self.precision = 5  # 默认5位小数
         self.display_mode = "watermark"  # 默认水印模式
+        self.font_scale = 100
+        self.font_color = "#0f1419"
         self.paused = False
         self.exam_type = "文化课"  # 默认考试类型
         self.exam_mode = "中考"  # 默认考试模式（中考/高考）
@@ -905,7 +1164,9 @@ class CountdownWindow(QMainWindow):
         font = QFont("Segoe UI", 11, QFont.Weight.DemiBold)
         self.countdown_label.setFont(font)
         self.countdown_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.countdown_label.setContentsMargins(10, 4, 10, 4)
+        self.countdown_label.setContentsMargins(0, 0, 0, 0)
+        self.countdown_label.setMargin(0)
+        self.apply_countdown_font()
         layout.addWidget(self.countdown_label)
 
         # 创建定时器来更新倒计时
@@ -972,6 +1233,8 @@ class CountdownWindow(QMainWindow):
             self.position = config.get('position', self.position)
             self.precision = config.get('precision', self.precision)
             self.display_mode = config.get('display_mode', self.display_mode)
+            self.font_scale = config.get('font_scale', self.font_scale)
+            self.font_color = config.get('font_color', self.font_color)
             self.window_width = config.get('window_width', self.window_width)
             self.window_height = config.get('window_height', self.window_height)
             self.exam_type = config.get('exam_type', self.exam_type)
@@ -1043,6 +1306,8 @@ class CountdownWindow(QMainWindow):
                 "position": self.position,
                 "precision": self.precision,
                 "display_mode": self.display_mode,
+                "font_scale": self.font_scale,
+                "font_color": self.font_color,
                 "window_width": self.window_width,
                 "window_height": self.window_height,
                 "target_date": None,
@@ -1081,6 +1346,8 @@ class CountdownWindow(QMainWindow):
                 'position': self.position,
                 'precision': self.precision,
                 'display_mode': self.display_mode,
+                'font_scale': self.font_scale,
+                'font_color': self.font_color,
                 'window_width': self.window_width,
                 'window_height': self.window_height,
                 'target_date': target_date_str,
@@ -1106,6 +1373,8 @@ class CountdownWindow(QMainWindow):
             self.window_height = 80
             self.precision = 5
             self.display_mode = "watermark"
+            self.font_scale = 100
+            self.font_color = "#0f1419"
             self.paused = False
             self.exam_type = "文化课"
             self.exam_mode = "中考"
@@ -1343,7 +1612,7 @@ class CountdownWindow(QMainWindow):
         self.tray_menu.addSeparator()
 
         # 添加修改日期的选项
-        change_date_action = QAction("修改日期设置", self)
+        change_date_action = QAction("设置", self)
         change_date_action.setIcon(FIF.CALENDAR.icon())
         change_date_action.triggered.connect(self.show_date_select_dialog)
         self.tray_menu.addAction(change_date_action)
@@ -1485,6 +1754,19 @@ class CountdownWindow(QMainWindow):
             # 保存配置
             self.save_config()
 
+    def apply_countdown_font(self):
+        """根据字体缩放设置应用倒计时字体大小"""
+        scaled_size = max(9, int(round(11 * (self.font_scale / 100))))
+        self.countdown_label.setFont(QFont("Segoe UI", scaled_size, QFont.Weight.DemiBold))
+
+    @staticmethod
+    def _hex_to_rgb(color_hex):
+        """将 #RRGGBB 颜色转换为 RGB 三元组"""
+        color = QColor(color_hex)
+        if not color.isValid():
+            color = QColor("#0f1419")
+        return color.red(), color.green(), color.blue()
+
     def update_timer_interval(self):
         """根据当前精度计算并设置合适的定时器更新间隔"""
         # 一天 = 86400 秒
@@ -1582,7 +1864,7 @@ class CountdownWindow(QMainWindow):
 
         # 更新托盘菜单项文字
         for action in self.tray_menu.actions():
-            if action.text() == "修改日期设置":
+            if action.text() == "设置":
                 continue
 
         # 弹出日期选择对话框前保存当前模式
@@ -1637,8 +1919,13 @@ class CountdownWindow(QMainWindow):
             if self.display_mode == "watermark":
                 # Fluent 的轻量展示层：保持透明、弱化背景、保留高可读性
                 alpha = 150 if int(days_left) % 2 == 0 else 170
+                r, g, b = self._hex_to_rgb(self.font_color)
+                self.countdown_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+                self.countdown_label.setMinimumSize(0, 0)
+                self.countdown_label.setMaximumSize(16777215, 16777215)
                 self.countdown_label.setStyleSheet(f"""
-                    color: rgba(32, 31, 30, {alpha});
+                    color: rgba({r}, {g}, {b}, {alpha});
+                    font-family: 'Segoe UI', 'Microsoft YaHei';
                     font-weight: 600;
                     background: transparent;
                     border: none;
@@ -1646,13 +1933,20 @@ class CountdownWindow(QMainWindow):
                 """)
             else:
                 # Fluent 的强调展示层：更高对比度与更清晰边界
-                self.countdown_label.setStyleSheet("""
-                    color: #0f1419;
+                metrics = QFontMetrics(self.countdown_label.font())
+                text_rect = metrics.tightBoundingRect(text)
+                text_width = text_rect.width()
+                text_height = text_rect.height()
+                self.countdown_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
+                self.countdown_label.setFixedSize(text_width + 28, text_height + 18)
+                self.countdown_label.setStyleSheet(f"""
+                    color: {self.font_color};
+                    font-family: 'Segoe UI', 'Microsoft YaHei';
                     font-weight: 700;
                     background: rgba(250, 249, 248, 225);
-                    border: 1px solid rgba(210, 208, 206, 210);
-                    border-radius: 8px;
-                    padding: 5px 10px;
+                    border: 1px solid rgba(210, 208, 206, 180);
+                    border-radius: 6px;
+                    padding: 4px 10px;
                 """)
         except KeyboardInterrupt:
             print("更新被用户中断")
