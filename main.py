@@ -22,14 +22,15 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                               QHBoxLayout, QComboBox,
                               QStackedWidget, QPushButton, QFrame,
                               QRadioButton, QButtonGroup, QLineEdit,
-                              QMessageBox, QSizePolicy, QSlider, QColorDialog)
-from PySide6.QtCore import Qt, QTimer, QDate
-from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QActionGroup, QPixmap, QPainter, QPen, QIntValidator, QFontMetrics
+                              QMessageBox, QSizePolicy, QSlider)
+from PySide6.QtCore import Qt, QTimer, QDate, Signal, QRectF, QPoint
+from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QActionGroup, QPixmap, QPainter, QPen, QIntValidator, QFontMetrics, QGuiApplication, QPainterPath
 from qfluentwidgets import (
     CardWidget,
     CheckableSystemTrayMenu,
     CheckBox,
     ComboBox,
+    ColorPickerButton,
     EditableComboBox,
     FastCalendarPicker,
     FluentStyleSheet,
@@ -110,6 +111,222 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "countdown_config.json")
 
 # 确保配置目录存在
 os.makedirs(CONFIG_DIR, exist_ok=True)
+
+
+class ScreenColorPicker(QWidget):
+    """全屏取色层：可拖动取色圈并显示放大镜预览"""
+
+    colorPicked = Signal(QColor)
+    canceled = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(None)
+        self._owner = parent
+        self._dragging = False
+        self._accepted = False
+        self._cursor_pos = QGuiApplication.primaryScreen().geometry().center()
+        self._drag_offset = QPoint(0, 0)
+        self._background = None
+        self._screen = None
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setWindowState(Qt.WindowState.WindowFullScreen)
+        self.setWindowOpacity(1.0)
+        self.setCursor(Qt.CursorShape.CrossCursor)
+        self.setMouseTracking(True)
+
+        self._ring_radius = 18
+        self._magnifier_size = 170
+        self._magnifier_zoom = 10
+        self._magnifier_radius = 64
+        self._capture_background()
+
+    def _screen_at(self, global_pos):
+        return QGuiApplication.screenAt(global_pos) or QGuiApplication.primaryScreen()
+
+    def _capture_background(self):
+        self._screen = self._screen_at(self._cursor_pos)
+        if self._screen is not None:
+            self._background = self._screen.grabWindow(0)
+
+    def _sample_point(self):
+        screen = self._screen_at(self._cursor_pos)
+        if screen is None or self._background is None:
+            return None, None, None
+        screen_geometry = screen.geometry()
+        dpr = self._background.devicePixelRatio()
+        local_x = self._cursor_pos.x() - screen_geometry.x()
+        local_y = self._cursor_pos.y() - screen_geometry.y()
+        sample_x = int(local_x * dpr)
+        sample_y = int(local_y * dpr)
+        return screen, sample_x, sample_y
+
+    def _current_color(self):
+        screen, sample_x, sample_y = self._sample_point()
+        if screen is None or sample_x is None or sample_y is None:
+            return QColor("#000000")
+        pixel = self._background.copy(sample_x, sample_y, 1, 1).toImage()
+        if pixel.isNull():
+            return QColor("#000000")
+        return QColor(pixel.pixel(0, 0))
+
+    def _move_cursor(self, pos):
+        self._cursor_pos = pos
+        self.update()
+
+    def _magnifier_rect(self):
+        magnifier_diameter = self._magnifier_size
+        magnifier_x = self._cursor_pos.x() + 26
+        magnifier_y = self._cursor_pos.y() + 26
+        if magnifier_x + magnifier_diameter > self.width():
+            magnifier_x = self._cursor_pos.x() - magnifier_diameter - 26
+        if magnifier_y + magnifier_diameter > self.height():
+            magnifier_y = self._cursor_pos.y() - magnifier_diameter - 26
+        return QRectF(magnifier_x, magnifier_y, magnifier_diameter, magnifier_diameter)
+
+    def _handle_rect(self):
+        magnifier_rect = self._magnifier_rect()
+        handle_size = 24
+        return QRectF(
+            magnifier_rect.right() - handle_size * 0.8,
+            magnifier_rect.bottom() - handle_size * 0.8,
+            handle_size,
+            handle_size,
+        )
+
+    def _hit_test_drag_area(self, global_pos):
+        return self._magnifier_rect().contains(global_pos) or self._handle_rect().contains(global_pos)
+
+    def _confirm_selection(self):
+        self._accepted = True
+        self.colorPicked.emit(self._current_color())
+        self.close()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.RightButton:
+            self._confirm_selection()
+            return
+        if event.button() == Qt.MouseButton.LeftButton:
+            global_pos = event.globalPosition().toPoint()
+            if self._hit_test_drag_area(global_pos):
+                self._dragging = True
+                self._drag_offset = global_pos - self._cursor_pos
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
+
+    def mouseMoveEvent(self, event):
+        if self._dragging:
+            self._cursor_pos = event.globalPosition().toPoint() - self._drag_offset
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self._dragging:
+            self._dragging = False
+            self.setCursor(Qt.CursorShape.CrossCursor)
+            self.update()
+
+    def leaveEvent(self, event):
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        screen = self._screen_at(self._cursor_pos)
+        if screen is not None and self._background is not None:
+            screenshot = self._background
+            screen_geometry = screen.geometry()
+            dpr = screenshot.devicePixelRatio()
+            local_x = self._cursor_pos.x() - screen_geometry.x()
+            local_y = self._cursor_pos.y() - screen_geometry.y()
+            sample_x = int(local_x * dpr)
+            sample_y = int(local_y * dpr)
+
+            painter.fillRect(self.rect(), QColor(15, 23, 42, 42))
+
+            # 放大镜：显示鼠标附近的像素块
+            sample_size = max(14, int(14 * dpr))
+            source_rect = screenshot.rect().adjusted(0, 0, -1, -1)
+            source_x = max(0, min(source_rect.right() - sample_size, sample_x - sample_size // 2))
+            source_y = max(0, min(source_rect.bottom() - sample_size, sample_y - sample_size // 2))
+            sample = screenshot.copy(source_x, source_y, sample_size, sample_size)
+
+            magnifier_rect = self._magnifier_rect()
+            path = QPainterPath()
+            path.addEllipse(magnifier_rect)
+            painter.save()
+            painter.setClipPath(path)
+            painter.fillRect(magnifier_rect, QColor(255, 255, 255, 240))
+            painter.drawPixmap(
+                magnifier_rect.toRect(),
+                sample.scaled(
+                    magnifier_rect.size().toSize(),
+                    Qt.AspectRatioMode.IgnoreAspectRatio,
+                    Qt.TransformationMode.FastTransformation
+                )
+            )
+            painter.restore()
+
+            painter.setPen(QPen(QColor(255, 255, 255, 235), 3))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(magnifier_rect)
+            painter.setPen(QPen(QColor(15, 108, 189, 220), 1))
+            painter.drawEllipse(magnifier_rect.adjusted(2, 2, -2, -2))
+
+            # 中心放大像素网格
+            center = magnifier_rect.center()
+            pixel_side = self._magnifier_radius / self._magnifier_zoom
+            center_color = self._current_color()
+            painter.setPen(QPen(QColor(0, 0, 0, 120), 1))
+            painter.drawLine(int(center.x()) - 10, int(center.y()), int(center.x()) + 10, int(center.y()))
+            painter.drawLine(int(center.x()), int(center.y()) - 10, int(center.x()), int(center.y()) + 10)
+
+            # 当前颜色提示块
+            preview_rect = QRectF(magnifier_rect.left(), magnifier_rect.bottom() + 10, magnifier_rect.width(), 28)
+            painter.setPen(QPen(QColor(0, 0, 0, 40), 1))
+            painter.setBrush(QColor(255, 255, 255, 230))
+            painter.drawRoundedRect(preview_rect, 10, 10)
+            painter.setPen(QColor(32, 31, 30))
+            painter.drawText(preview_rect.adjusted(12, 0, -12, 0), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, f"{center_color.name().upper()}  右键确认")
+
+        # 取色圈
+        ring_radius = self._ring_radius
+        ring_rect = QRectF(self._cursor_pos.x() - ring_radius, self._cursor_pos.y() - ring_radius, ring_radius * 2, ring_radius * 2)
+        painter.setPen(QPen(QColor(255, 255, 255, 245), 3))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(ring_rect)
+        painter.setPen(QPen(QColor(15, 108, 189, 235), 2))
+        painter.drawEllipse(ring_rect.adjusted(3, 3, -3, -3))
+        painter.setPen(QPen(QColor(255, 255, 255, 220), 1))
+        painter.drawEllipse(QRectF(self._cursor_pos.x() - 3, self._cursor_pos.y() - 3, 6, 6))
+
+        handle_rect = self._handle_rect()
+        painter.setPen(QPen(QColor(255, 255, 255, 240), 2))
+        painter.setBrush(QColor(15, 108, 189, 235))
+        painter.drawEllipse(handle_rect)
+        painter.setPen(QPen(QColor(255, 255, 255, 225), 2))
+        painter.drawLine(int(handle_rect.center().x()) - 5, int(handle_rect.center().y()), int(handle_rect.center().x()) + 5, int(handle_rect.center().y()))
+        painter.drawLine(int(handle_rect.center().x()), int(handle_rect.center().y()) - 5, int(handle_rect.center().x()), int(handle_rect.center().y()) + 5)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.canceled.emit()
+            self.close()
+            return
+        super().keyPressEvent(event)
+
+    def closeEvent(self, event):
+        if not self._accepted:
+            self.canceled.emit()
+        super().closeEvent(event)
 
 class DateSelectDialog(QDialog):
     """日期选择对话框"""
@@ -669,9 +886,12 @@ class DateSelectDialog(QDialog):
 
         color_row = QHBoxLayout()
         color_row.addWidget(QLabel("字体颜色:"))
-        self.font_color_button = PushButton("选择颜色")
-        self.font_color_button.clicked.connect(self.pick_font_color)
+        self.font_color_button = ColorPickerButton(QColor(self.font_color), "选择颜色", self)
+        self.font_color_button.colorChanged.connect(self.on_font_color_changed)
         color_row.addWidget(self.font_color_button)
+        self.pick_screen_color_button = PushButton("从屏幕取色")
+        self.pick_screen_color_button.clicked.connect(self.pick_color_from_screen)
+        color_row.addWidget(self.pick_screen_color_button)
         self.color_preview_label = QLabel(self.font_color)
         self.color_preview_label.setObjectName("colorPreview")
         self._update_color_preview()
@@ -829,20 +1049,40 @@ class DateSelectDialog(QDialog):
         for key, btn in self.position_buttons.items():
             btn.setChecked(key == self.window_position)
 
-    def pick_font_color(self):
-        """选择字体颜色"""
-        color = QColorDialog.getColor(QColor(self.font_color), self, "选择倒计时字体颜色")
+    def on_font_color_changed(self, color):
+        """Fluent 颜色按钮变化时同步配置"""
         if color.isValid():
             self.font_color = color.name()
             self._update_color_preview()
+
+    def pick_color_from_screen(self):
+        """从屏幕任意位置拾取颜色"""
+        self.hide()
+        self._screen_picker = ScreenColorPicker(self)
+        self._screen_picker.colorPicked.connect(self._apply_screen_picked_color)
+        self._screen_picker.canceled.connect(self._restore_after_screen_pick)
+        self._screen_picker.show()
+
+    def _apply_screen_picked_color(self, color):
+        if color.isValid():
+            self.font_color = color.name()
+            if hasattr(self, "font_color_button"):
+                self.font_color_button.setColor(color)
+            self._update_color_preview()
+        self._restore_after_screen_pick()
+
+    def _restore_after_screen_pick(self):
+        self.show()
+        self.activateWindow()
 
     def _update_color_preview(self):
         """刷新颜色预览"""
         if not hasattr(self, "color_preview_label"):
             return
         self.color_preview_label.setText(self.font_color)
+        preview_text_color = "#000000" if QColor(self.font_color).lightness() > 150 else "#ffffff"
         self.color_preview_label.setStyleSheet(
-            f"background: {self.font_color}; color: #ffffff; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 8px; padding: 2px 8px;"
+            f"background: {self.font_color}; color: {preview_text_color}; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 8px; padding: 2px 8px;"
         )
 
     def on_region_year_changed(self, year_text):
@@ -1613,7 +1853,7 @@ class CountdownWindow(QMainWindow):
 
         # 添加修改日期的选项
         change_date_action = QAction("设置", self)
-        change_date_action.setIcon(FIF.CALENDAR.icon())
+        change_date_action.setIcon(FIF.SETTING.icon())
         change_date_action.triggered.connect(self.show_date_select_dialog)
         self.tray_menu.addAction(change_date_action)
 
