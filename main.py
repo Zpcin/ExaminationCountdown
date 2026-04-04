@@ -19,12 +19,32 @@ import os
 import tempfile  # 导入tempfile用于创建锁文件
 from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                               QWidget, QSystemTrayIcon, QMenu, QDialog,
-                              QDateEdit, QHBoxLayout, QComboBox,
-                              QCalendarWidget, QTabWidget, QPushButton, QFrame,
-                              QRadioButton, QButtonGroup, QLineEdit, QGroupBox,
+                              QHBoxLayout, QComboBox,
+                              QStackedWidget, QPushButton, QFrame,
+                              QRadioButton, QButtonGroup, QLineEdit,
                               QMessageBox)
 from PySide6.QtCore import Qt, QTimer, QDate
-from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QPixmap
+from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QActionGroup, QPixmap, QPainter, QPen, QIntValidator
+from qfluentwidgets import (
+    CardWidget,
+    CheckableSystemTrayMenu,
+    CheckBox,
+    ComboBox,
+    EditableComboBox,
+    FastCalendarPicker,
+    FluentStyleSheet,
+    FluentIcon as FIF,
+    LineEdit,
+    NavigationDisplayMode,
+    NavigationInterface,
+    RoundMenu,
+    PrimaryPushButton,
+    PushButton,
+    RadioButton,
+    Theme,
+    setTheme,
+    setThemeColor,
+)
 
 # 全局应用程序变量
 app_instance = None
@@ -312,6 +332,7 @@ class DateSelectDialog(QDialog):
 
     def __init__(self, parent=None, exam_mode="中考"):
         super().__init__(parent)
+        FluentStyleSheet.DIALOG.apply(self)
 
         # 首先设置当前考试模式
         self.current_exam_mode = exam_mode
@@ -319,224 +340,21 @@ class DateSelectDialog(QDialog):
         # 然后计算考试年份
         self.exam_year = self._calculate_exam_year()
 
-        self.setWindowTitle(f"设置日期和模式")
-        self.resize(450, 550)  # 增加高度以适应新控件
+        self.setWindowTitle("设置日期和模式")
+        self.resize(780, 520)
         self.setStyleSheet("""
-            QDialog {
-                background-color: #f5f5f5;
-                border-radius: 10px;
+            QLabel#dialogTitle {
+                font-size: 18px;
+                font-weight: 600;
             }
-            QLabel {
-                font-family: 'Microsoft YaHei', Arial;
-                font-size: 12pt;
-                color: #333333;
+            QLabel#sectionTitle {
+                font-size: 13px;
+                font-weight: 600;
             }
-            QComboBox {
-                border: 1px solid #cccccc;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: white;
-                font-size: 11pt;
-                min-height: 30px;
-            }
-            QComboBox::drop-down {
-                border: 0px;
-                width: 20px;
-            }
-            QPushButton {
-                background-color: #4a86e8;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-size: 11pt;
-            }
-            QPushButton:hover {
-                background-color: #3a76d8;
-            }
-            QLineEdit {
-                border: 1px solid #cccccc;
-                border-radius: 4px;
-                padding: 8px;
-                font-size: 11pt;
-                background-color: white;
-            }
-            QLineEdit:focus {
-                border-color: #4a86e8;
-            }
-            QGroupBox {
-                font-weight: bold;
-                border: 1px solid #cccccc;
-                border-radius: 6px;
-                margin-top: 1.5ex;
-                padding: 10px;
-                background-color: #ffffff;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-            QCalendarWidget {
-                background-color: white;
-                border-radius: 6px;
-            }
-            QCalendarWidget QToolButton {
-                height: 30px;
-                width: 150px;
-                color: #333333;
-                font-size: 12pt;
-                icon-size: 24px, 24px;
-                background-color: #f8f9fa;
-                border: none;
-                border-radius: 4px;
-            }
-            QCalendarWidget QToolButton:hover {
-                background-color: #e8eaed;
-            }
-            QCalendarWidget QMenu {
-                background-color: white;
-                border: 1px solid #dadce0;
-                border-radius: 4px;
-                padding: 4px;
-            }
-            QCalendarWidget QSpinBox {
-                font-size: 12pt;
-                selection-background-color: #4a86e8;
-                selection-color: white;
-                background-color: white;
-                border: 1px solid #dadce0;
-                border-radius: 4px;
-                padding: 2px;
-            }
-            QCalendarWidget QAbstractItemView:enabled {
-                font-size: 11pt;
-                color: #333333;
-                background-color: white;
-                selection-background-color: #4a86e8;
-                selection-color: white;
-                outline: none;
-            }
-            QCalendarWidget QAbstractItemView:disabled {
-                color: #bbbbbb;
-            }
-            QCalendarWidget QWidget { 
-                alternate-background-color: #f8f9fa; 
-            }
-            QCalendarWidget QAbstractItemView:item:hover {
-                background-color: #e8eaed;
-                border-radius: 4px;
-            }
-            QCalendarWidget QAbstractItemView:item:selected {
-                background-color: #4a86e8;
-                color: white;
-                border-radius: 4px;
-            }
-            QCalendarWidget QWidget#qt_calendar_navigationbar {
-                background-color: #f8f9fa;
-                border-top-left-radius: 6px;
-                border-top-right-radius: 6px;
-                padding: 4px;
-                border-bottom: 1px solid #dadce0;
-            }
-            /* 上一个月按钮样式 */
-            QCalendarWidget QToolButton#qt_calendar_prevmonth {
-                icon-size: 24px;
-                background-color: #f8f9fa;
-                border-radius: 18px;
-                margin: 3px;
-                padding: 3px;
-                color: #333333;
-                font-weight: bold;
-                qproperty-text: "◄";
-                qproperty-icon: none;  /* 移除图标，使用文本 */
-            }
-            /* 下一个月按钮样式 */
-            QCalendarWidget QToolButton#qt_calendar_nextmonth {
-                icon-size: 24px;
-                background-color: #f8f9fa;
-                border-radius: 18px;
-                margin: 3px;
-                padding: 3px;
-                color: #333333;
-                font-weight: bold;
-                qproperty-text: "►";
-                qproperty-icon: none;  /* 移除图标，使用文本 */
-            }
-            /* 年份选择按钮样式 */
-            QCalendarWidget QToolButton#qt_calendar_yearbutton {
-                background-color: #f8f9fa;
-                color: #333333;
-                border-radius: 4px;
-                padding: 3px 10px;
-                font-weight: bold;
-                margin-right: 5px;
-            }
-            QCalendarWidget QToolButton#qt_calendar_yearbutton::menu-indicator {
-                image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23555555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-                subcontrol-position: right center;
-                subcontrol-origin: padding;
-                width: 16px;
-                height: 16px;
-                position: relative;
-                left: -3px;
-            }
-            /* 上一年按钮样式 */
-            QCalendarWidget QToolButton#qt_calendar_prevyear {
-                icon-size: 25px;
-                background-color: #f8f9fa;
-                border-radius: 18px;
-                margin: 3px;
-                padding: 3px;
-                color: #333333;
-                font-weight: bold;
-                qproperty-text: "◄";
-                qproperty-icon: none;  /* 移除图标，使用文本 */
-            }
-            /* 下一年按钮样式 */
-            QCalendarWidget QToolButton#qt_calendar_nextyear {
-                icon-size: 25px;
-                background-color: #f8f9fa;
-                border-radius: 18px;
-                margin: 3px;
-                padding: 3px;
-                color: #333333;
-                font-weight: bold;
-                qproperty-text: "►";
-                qproperty-icon: none;  /* 移除图标，使用文本 */
-            }
-            QCalendarWidget QToolButton#qt_calendar_prevyear:hover,
-            QCalendarWidget QToolButton#qt_calendar_nextyear:hover {
-                background-color: #e8eaed;
-            }
-            /* 月份选择按钮样式 */
-            QCalendarWidget QToolButton#qt_calendar_monthbutton {
-                background-color: #f8f9fa;
-                color: #333333;
-                border-radius: 4px;
-                padding: 3px 10px;
-                font-weight: bold;
-                margin-right: 5px;
-            }
-            QCalendarWidget QToolButton#qt_calendar_monthbutton::menu-indicator {
-                image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23555555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-                subcontrol-position: right center;
-                subcontrol-origin: padding;
-                width: 16px;
-                height: 16px;
-                position: relative;
-                left: -3px;
-            }
-            QCalendarWidget QToolButton#qt_calendar_prevmonth:hover, 
-            QCalendarWidget QToolButton#qt_calendar_nextmonth:hover,
-            QCalendarWidget QToolButton#qt_calendar_yearbutton:hover,
-            QCalendarWidget QToolButton#qt_calendar_monthbutton:hover {
-                background-color: #e8eaed;
-            }
-            QDateEdit::down-arrow {
-                image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a86e8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
-                width: 18px;
-                height: 18px;
+            QLabel#hintLabel,
+            QLabel#noteLabel {
+                font-size: 12px;
+                color: #666666;
             }
         """)
 
@@ -546,6 +364,7 @@ class DateSelectDialog(QDialog):
 
         # 默认激活考试类型
         self.exam_dates = self.zhongkao_dates if exam_mode == "中考" else self.gaokao_dates
+        self._last_non_custom_mode = exam_mode if exam_mode in ("中考", "高考") else "中考"
 
         # 添加自定义文本模板
         self.custom_text_template = "{time}天后，未来将会怎样？"
@@ -553,236 +372,319 @@ class DateSelectDialog(QDialog):
             self.custom_text_template = parent.custom_text_template
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
+        layout.setContentsMargins(0, 14, 16, 14)
 
-        # 标题标签
-        info_label = QLabel("设置倒计时日期和模式")
-        info_label.setStyleSheet("font-size: 16pt; font-weight: bold; color: #333; margin-bottom: 10px;")
-        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(info_label)
+        # 左侧可折叠 Fluent 导航 + 右侧内容页
+        selector_layout = QHBoxLayout()
+        selector_layout.setSpacing(10)
+        selector_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 添加考试类型选择
-        exam_type_frame = QFrame()
-        exam_type_frame.setStyleSheet("background-color: #f8f9fa; border-radius: 8px; padding: 10px;")
-        exam_type_layout = QHBoxLayout(exam_type_frame)
+        self.selector_nav = NavigationInterface(parent=self, showMenuButton=True, collapsible=True)
+        self.selector_nav.setExpandWidth(170)
+        self.selector_nav.setMinimumExpandWidth(48)
+        self.selector_nav.displayModeChanged.connect(self._on_selector_nav_mode_changed)
+        self._on_selector_nav_mode_changed(NavigationDisplayMode.EXPAND)
+        selector_layout.addWidget(self.selector_nav)
 
-        exam_type_label = QLabel("模式类型:")
-        exam_type_label.setStyleSheet("font-weight: bold;")
-        exam_type_layout.addWidget(exam_type_label)
+        self.selector_stack = QStackedWidget()
+        selector_layout.addWidget(self.selector_stack, 1)
+        layout.addLayout(selector_layout)
+
+        # 按地区选择页
+        region_page = QWidget()
+        region_layout = QVBoxLayout(region_page)
+        region_layout.setContentsMargins(0, 0, 0, 0)
+        region_layout.setSpacing(12)
+
+        region_body = QHBoxLayout()
+        region_body.setSpacing(12)
+
+        region_left_card = CardWidget()
+        region_left_layout = QVBoxLayout(region_left_card)
+        region_left_layout.setContentsMargins(12, 10, 12, 12)
+        region_left_layout.setSpacing(10)
+
+        region_left_title = QLabel("地区与模式")
+        region_left_title.setObjectName("sectionTitle")
+        region_left_layout.addWidget(region_left_title)
+
+        mode_card = CardWidget()
+        mode_layout = QHBoxLayout(mode_card)
+        mode_layout.setContentsMargins(12, 10, 12, 10)
+        mode_layout.setSpacing(14)
+
+        mode_label = QLabel("模式类型:")
+        mode_label.setStyleSheet("font-weight: 600;")
+        mode_layout.addWidget(mode_label)
 
         self.exam_type_group = QButtonGroup(self)
 
-        self.zhongkao_radio = QRadioButton("中考")
+        self.zhongkao_radio = RadioButton()
+        self.zhongkao_radio.setText("中考")
         self.zhongkao_radio.setChecked(exam_mode == "中考")
         self.zhongkao_radio.toggled.connect(self.on_exam_type_changed)
         self.exam_type_group.addButton(self.zhongkao_radio)
-        exam_type_layout.addWidget(self.zhongkao_radio)
+        mode_layout.addWidget(self.zhongkao_radio)
 
-        self.gaokao_radio = QRadioButton("高考")
+        self.gaokao_radio = RadioButton()
+        self.gaokao_radio.setText("高考")
         self.gaokao_radio.setChecked(exam_mode == "高考")
         self.gaokao_radio.toggled.connect(self.on_exam_type_changed)
         self.exam_type_group.addButton(self.gaokao_radio)
-        exam_type_layout.addWidget(self.gaokao_radio)
+        mode_layout.addWidget(self.gaokao_radio)
 
-        # 添加自定义模式单选按钮
-        self.custom_radio = QRadioButton("自定义")
-        self.custom_radio.setChecked(exam_mode == "自定义")
-        self.custom_radio.toggled.connect(self.on_exam_type_changed)
-        self.exam_type_group.addButton(self.custom_radio)
-        exam_type_layout.addWidget(self.custom_radio)
+        region_left_layout.addWidget(mode_card)
 
-        layout.addWidget(exam_type_frame)
+        year_label = QLabel("考试年份:")
+        region_left_layout.addWidget(year_label)
 
-        # 创建自定义文本输入框组
-        self.custom_group = QGroupBox("自定义文本设置")
-        self.custom_group.setVisible(exam_mode == "自定义")
-        custom_layout = QVBoxLayout(self.custom_group)
-
-        custom_help_label = QLabel("在文本中使用{time}标记来指定倒计时数字的位置")
-        custom_help_label.setWordWrap(True)
-        custom_help_label.setStyleSheet("font-size: 10pt; color: #666;")
-        custom_layout.addWidget(custom_help_label)
-
-        self.custom_text_input = QLineEdit(self.custom_text_template)
-        self.custom_text_input.setPlaceholderText("例如：距离目标仅剩{time}天")
-        custom_layout.addWidget(self.custom_text_input)
-
-        layout.addWidget(self.custom_group)
-
-        # 创建标签页控件来分隔不同的选择方式
-        self.tab_widget = QTabWidget()
-        self.tab_widget.setStyleSheet("""
-            QTabWidget::pane {
-                border: 1px solid #cccccc;
-                border-radius: 5px;
-                background-color: white;
-                padding: 10px;
-            }
-            QTabBar::tab {
-                background-color: #e6e6e6;
-                border: 1px solid #cccccc;
-                border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-                padding: 8px 20px;
-                margin-right: 2px;
-            }
-            QTabBar::tab:selected {
-                background-color: white;
-                border-bottom: 2px solid #4a86e8;
-            }
-        """)
-        layout.addWidget(self.tab_widget)
-
-        # 按地区选择的标签页
-        region_tab = QWidget()
-        region_layout = QVBoxLayout(region_tab)
-        region_layout.setSpacing(15)
+        self.region_year_combo = EditableComboBox()
+        FluentStyleSheet.COMBO_BOX.apply(self.region_year_combo)
+        current_year = datetime.datetime.now().year
+        year_items = [str(y) for y in range(current_year - 8, current_year + 16)]
+        self.region_year_combo.addItems(year_items)
+        if hasattr(self.region_year_combo, "lineEdit") and self.region_year_combo.lineEdit() is not None:
+            self.region_year_combo.lineEdit().setValidator(QIntValidator(1900, 9999, self))
+            self.region_year_combo.lineEdit().setPlaceholderText("可手动输入年份")
+            self.region_year_combo.lineEdit().editingFinished.connect(
+                lambda: self.on_region_year_changed(self.region_year_combo.currentText())
+            )
+        year_index = self.region_year_combo.findText(str(self.exam_year))
+        if year_index < 0:
+            self.region_year_combo.addItem(str(self.exam_year))
+            year_index = self.region_year_combo.findText(str(self.exam_year))
+        self.region_year_combo.setCurrentIndex(year_index)
+        self.region_year_combo.currentTextChanged.connect(self.on_region_year_changed)
+        region_left_layout.addWidget(self.region_year_combo)
 
         # 添加省份选择下拉框
         province_label = QLabel("选择省份或城市:")
-        region_layout.addWidget(province_label)
+        region_left_layout.addWidget(province_label)
 
-        self.province_combo = QComboBox()
+        self.province_combo = ComboBox()
+        FluentStyleSheet.COMBO_BOX.apply(self.province_combo)
         # 修复类型错误：将dict_keys转换为列表
         self.province_combo.addItems(list(self.exam_dates.keys()))
         self.province_combo.setCurrentIndex(0)
         self.province_combo.currentTextChanged.connect(self.on_province_selected)
-        region_layout.addWidget(self.province_combo)
+        region_left_layout.addWidget(self.province_combo)
 
         # 添加考试科目选择框
         exam_type_label = QLabel("考试科目:")
-        region_layout.addWidget(exam_type_label)
+        region_left_layout.addWidget(exam_type_label)
 
-        self.exam_type_combo = QComboBox()
+        self.exam_type_combo = ComboBox()
+        FluentStyleSheet.COMBO_BOX.apply(self.exam_type_combo)
         self.exam_type_combo.setEnabled(False)  # 初始状态禁用，等待选择省份
         self.exam_type_combo.currentTextChanged.connect(self.on_exam_type_selected)
-        region_layout.addWidget(self.exam_type_combo)
+        region_left_layout.addWidget(self.exam_type_combo)
 
-        self.tab_widget.addTab(region_tab, "按地区选择")
+        region_left_layout.addStretch(1)
 
-        # 日历选择的标签页
-        calendar_tab = QWidget()
-        calendar_layout = QVBoxLayout(calendar_tab)
-        calendar_layout.setContentsMargins(10, 15, 10, 15)
+        region_right_card = CardWidget()
+        region_right_layout = QVBoxLayout(region_right_card)
+        region_right_layout.setContentsMargins(12, 10, 12, 12)
+        region_right_layout.setSpacing(10)
 
-        self.calendar_widget = QCalendarWidget()
-        self.calendar_widget.setGridVisible(True)
-        self.calendar_widget.setMinimumDate(QDate.currentDate())
-        self.calendar_widget.setSelectedDate(QDate.currentDate().addMonths(3))
-        self.calendar_widget.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)
-        self.calendar_widget.setHorizontalHeaderFormat(QCalendarWidget.HorizontalHeaderFormat.SingleLetterDayNames)
-        self.calendar_widget.setFixedHeight(300)  # 设置固定高度使日历更紧凑
-        self.calendar_widget.selectionChanged.connect(self.on_calendar_date_selected)
+        region_right_title = QLabel("当前选择")
+        region_right_title.setObjectName("sectionTitle")
+        region_right_layout.addWidget(region_right_title)
 
-        # 为星期几标题设置中文
-        self.calendar_widget.setHorizontalHeaderFormat(QCalendarWidget.HorizontalHeaderFormat.SingleLetterDayNames)
+        self.region_preview_label = QLabel()
+        self.region_preview_label.setWordWrap(True)
+        self.region_preview_label.setObjectName("hintLabel")
+        region_right_layout.addWidget(self.region_preview_label)
+
+        self.region_confirm_button = PrimaryPushButton()
+        self.region_confirm_button.setText("确认地区选择")
+        self.region_confirm_button.clicked.connect(self.accept)
+        region_right_layout.addStretch(1)
+        region_right_layout.addWidget(self.region_confirm_button)
+
+        region_body.addWidget(region_left_card, 2)
+        region_body.addWidget(region_right_card, 1)
+        region_layout.addLayout(region_body)
+
+        region_note_label = QLabel("注意：以上考试日期信息来自网络整理，仅供参考。\n"
+                      "各地考试安排可能会有调整，请以当地教育部门最新通知为准。")
+        region_note_label.setObjectName("noteLabel")
+        region_note_label.setWordWrap(True)
+        region_layout.addWidget(region_note_label)
+
+        self.selector_stack.addWidget(region_page)
+
+        # 日历选择页
+        calendar_page = QWidget()
+        calendar_layout = QVBoxLayout(calendar_page)
+        calendar_layout.setContentsMargins(0, 0, 0, 0)
+        calendar_layout.setSpacing(10)
+
+        self.calendar_widget = FastCalendarPicker()
+        self.calendar_widget.setDate(QDate.currentDate().addMonths(3))
+        self.calendar_widget.setFixedHeight(36)
+        self.calendar_widget.setMaximumWidth(320)
+        self.calendar_widget.dateChanged.connect(self.on_calendar_date_selected)
 
         calendar_layout.addWidget(self.calendar_widget)
 
-        self.tab_widget.addTab(calendar_tab, "日历选择")
+        custom_card = CardWidget()
+        custom_card_layout = QVBoxLayout(custom_card)
+        custom_card_layout.setContentsMargins(12, 10, 12, 12)
+        custom_card_layout.setSpacing(8)
 
-        # 选择的日期展示
-        date_frame = QFrame()
-        date_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        date_frame.setStyleSheet("background-color: #e8f0fe; border-radius: 8px; padding: 15px;")
-        date_layout = QHBoxLayout(date_frame)
-        date_layout.setSpacing(10)
+        custom_title = QLabel("自定义文本设置")
+        custom_title.setObjectName("sectionTitle")
+        custom_card_layout.addWidget(custom_title)
 
-        date_label = QLabel("已选择日期:")
-        date_label.setStyleSheet("font-weight: bold;")
-        date_layout.addWidget(date_label)
+        custom_help_label = QLabel("在文本中使用{time}标记来指定倒计时数字的位置")
+        custom_help_label.setWordWrap(True)
+        custom_help_label.setObjectName("hintLabel")
+        custom_card_layout.addWidget(custom_help_label)
 
-        self.date_edit = QDateEdit()
-        self.date_edit.setCalendarPopup(True)
-        self.date_edit.setDate(QDate.currentDate().addMonths(3))  # 默认设置为三个月后
-        self.date_edit.setMinimumDate(QDate.currentDate())  # 最小日期为当前日期
-        self.date_edit.setDisplayFormat("yyyy年MM月dd日")  # 使用中文格式显示日期
-        self.date_edit.setStyleSheet("""
-            QDateEdit {
-                border: 1px solid #cccccc;
-                border-radius: 6px;
-                padding: 5px 30px 5px 12px;  /* 右侧留更多空间放置箭头 */
-                font-size: 12pt;
-                min-height: 32px;
-                background-color: white;
-                selection-background-color: #4a86e8;
-                selection-color: white;
-            }
-            QDateEdit:hover {
-                border-color: #4a86e8;
-                background-color: #f9f9f9;
-            }
-            QDateEdit:focus {
-                border-color: #4a86e8;
-                border-width: 2px;
-            }
-            QDateEdit::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: right center;
-                width: 24px;
-                border: none;
-                background: transparent;
-                margin-right: 4px;
-            }
-            QDateEdit::down-arrow {
-                image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a86e8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
-                width: 18px;
-                height: 18px;
-            }
-            /* 控制弹出的日历控件宽度 */
-            QCalendarWidget {
-                max-width: 300px;
-            }
-            QCalendarWidget QWidget#qt_calendar_navigationbar {
-                max-width: 300px;
-            }
-            QCalendarWidget QToolButton {
-                height: 30px;
-                max-width: 100px;
-            }
-        """)
-        date_layout.addWidget(self.date_edit)
+        self.custom_mode_check = CheckBox("启用自定义文本")
+        self.custom_mode_check.setChecked(exam_mode == "自定义")
+        self.custom_mode_check.toggled.connect(self.on_custom_mode_toggled)
+        custom_card_layout.addWidget(self.custom_mode_check)
 
-        layout.addWidget(date_frame)
+        self.custom_text_input = LineEdit()
+        self.custom_text_input.setText(self.custom_text_template)
+        self.custom_text_input.setPlaceholderText("例如：距离目标仅剩{time}天")
+        FluentStyleSheet.LINE_EDIT.apply(self.custom_text_input)
+        custom_card_layout.addWidget(self.custom_text_input)
 
-        # 添加提示信息
-        note_label = QLabel("注意：以上考试日期信息来自网络整理，仅供参考。\n"
-                           "各地考试安排可能会有调整，请以当地教育部门最新通知为准。")
-        note_label.setStyleSheet("color: #666; font-size: 10pt;")
-        note_label.setWordWrap(True)
-        layout.addWidget(note_label)
+        self.custom_card = custom_card
+        self.custom_text_input.setEnabled(exam_mode == "自定义")
+        calendar_layout.addWidget(custom_card)
+
+        calendar_layout.addStretch(1)
 
         # 按钮布局
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+        button_layout.setContentsMargins(0, 2, 0, 0)
 
         # 自定义确定和取消按钮，替代标准按钮盒
-        ok_button = QPushButton("确定")
+        ok_button = PrimaryPushButton()
+        ok_button.setText("确定")
+        ok_button.setProperty("class", "accent")
         ok_button.clicked.connect(self.accept)
         button_layout.addWidget(ok_button)
 
-        cancel_button = QPushButton("取消")
-        cancel_button.setStyleSheet("background-color: #f0f0f0; color: #333;")
+        cancel_button = PushButton()
+        cancel_button.setText("取消")
         cancel_button.clicked.connect(self.reject)
         button_layout.addWidget(cancel_button)
 
-        layout.addLayout(button_layout)
+        calendar_layout.addLayout(button_layout)
+
+        # 日期页就是日历页 + 自定义文本
+        self.selector_stack.addWidget(calendar_page)
+
+        self.selector_nav.addItem(
+            routeKey="region",
+            icon=FIF.APPLICATION,
+            text="按地区选择",
+            onClick=lambda: self.set_selector_page(0),
+            tooltip="按地区选择"
+        )
+        self.selector_nav.addItem(
+            routeKey="calendar",
+            icon=FIF.CALENDAR,
+            text="按日期选择",
+            onClick=lambda: self.set_selector_page(1),
+            tooltip="按日期选择"
+        )
 
         # 根据当前选择的模式更新界面状态
         self.update_ui_based_on_mode(exam_mode)
+        self._refresh_region_preview()
 
     def update_ui_based_on_mode(self, mode):
         """根据当前选择的模式更新UI元素的可见性"""
-        is_custom = mode == "自定义"
-        self.custom_group.setVisible(is_custom)
-        # 保持标签页始终可见，确保日历可用
-        self.tab_widget.setVisible(True)
+        self.selector_nav.setVisible(True)
+        self.selector_stack.setVisible(True)
 
-        if is_custom:
-            # 在自定义模式下，显示日历标签页
-            self.tab_widget.setCurrentIndex(1)  # 日历标签页
-            self.calendar_widget.setSelectedDate(self.date_edit.date())
+        if mode == "中考" or mode == "高考":
+            self.set_selector_page(0)
+            self.custom_mode_check.blockSignals(True)
+            self.custom_mode_check.setChecked(False)
+            self.custom_mode_check.blockSignals(False)
+            self.custom_text_input.setEnabled(False)
+        else:
+            self.set_selector_page(1)
+            self.custom_mode_check.blockSignals(True)
+            self.custom_mode_check.setChecked(True)
+            self.custom_mode_check.blockSignals(False)
+            self.custom_text_input.setEnabled(True)
+            self.calendar_widget.setDate(self.calendar_widget.date)
+
+    def on_custom_mode_toggled(self, checked):
+        """切换自定义文本模式"""
+        if checked:
+            if self.current_exam_mode in ("中考", "高考"):
+                self._last_non_custom_mode = self.current_exam_mode
+            self.current_exam_mode = "自定义"
+            self.setWindowTitle("设置自定义倒计时")
+            self.set_selector_page(1)
+            self.custom_text_input.setEnabled(True)
+        else:
+            self.current_exam_mode = self._last_non_custom_mode
+            if self.current_exam_mode == "中考":
+                self.setWindowTitle("设置中考日期")
+            elif self.current_exam_mode == "高考":
+                self.setWindowTitle("设置高考日期")
+            self.custom_text_input.setEnabled(False)
+
+    def _on_selector_nav_mode_changed(self, mode):
+        """根据导航模式切换左侧宽度，展开显示文字，收起显示图标"""
+        if mode == NavigationDisplayMode.EXPAND:
+            self.selector_nav.setFixedWidth(170)
+        else:
+            self.selector_nav.setFixedWidth(52)
+
+    def set_selector_page(self, index):
+        """切换右侧内容页面"""
+        self.selector_stack.setCurrentIndex(index)
+
+    def on_region_year_changed(self, year_text):
+        """地区页年份变化时更新当前日期"""
+        year_text = year_text.strip()
+        if not year_text or not year_text.isdigit():
+            return
+
+        year_value = int(year_text)
+        if year_value < 1900 or year_value > 9999:
+            return
+
+        self.exam_year = year_value
+        if self.region_year_combo.findText(str(year_value)) < 0:
+            self.region_year_combo.addItem(str(year_value))
+
+        current_exam_type = self.exam_type_combo.currentText() if hasattr(self, "exam_type_combo") else ""
+        if current_exam_type:
+            self.on_exam_type_selected(current_exam_type)
+        else:
+            self._refresh_region_preview()
+
+    def _refresh_region_preview(self):
+        """刷新地区页的当前选择预览"""
+        if not hasattr(self, "region_preview_label"):
+            return
+
+        province_name = self.province_combo.currentText() if hasattr(self, "province_combo") else ""
+        exam_type = self.exam_type_combo.currentText() if hasattr(self, "exam_type_combo") else ""
+        date_text = self.calendar_widget.date.toString("yyyy年MM月dd日") if hasattr(self, "calendar_widget") else ""
+
+        if province_name and province_name != "请选择省份或城市" and exam_type:
+            self.region_preview_label.setText(
+                f"年份：{self.exam_year}\n"
+                f"地区：{province_name}\n"
+                f"科目：{exam_type}\n"
+                f"日期：{date_text}"
+            )
+        else:
+            self.region_preview_label.setText("先选择省份和科目，右侧会显示当前日期与确认入口。")
 
     @staticmethod
     def _calculate_exam_year():
@@ -819,16 +721,21 @@ class DateSelectDialog(QDialog):
     def on_exam_type_changed(self):
         """当选择考试类型（中考/高考/自定义）变化时更新界面"""
         # 重新计算考试年份
-        self.exam_year = self._calculate_exam_year()
+        if hasattr(self, "region_year_combo") and self.region_year_combo.currentText().isdigit():
+            self.exam_year = int(self.region_year_combo.currentText())
+        else:
+            self.exam_year = self._calculate_exam_year()
 
         if self.zhongkao_radio.isChecked():
             self.current_exam_mode = "中考"
+            self._last_non_custom_mode = "中考"
             # 使用基础数据重新生成日期
             self.zhongkao_dates = self._convert_to_full_dates(self.base_zhongkao_dates)
             self.exam_dates = self.zhongkao_dates
             self.setWindowTitle("设置中考日期")
         elif self.gaokao_radio.isChecked():
             self.current_exam_mode = "高考"
+            self._last_non_custom_mode = "高考"
             # 使用基础数据重新生成日期
             self.gaokao_dates = self._convert_to_full_dates(self.base_gaokao_dates)
             self.exam_dates = self.gaokao_dates
@@ -840,7 +747,15 @@ class DateSelectDialog(QDialog):
         # 更新UI组件显示状态
         self.update_ui_based_on_mode(self.current_exam_mode)
 
-        if not self.custom_radio.isChecked():
+        if self.current_exam_mode in ("中考", "高考") and hasattr(self, "custom_mode_check"):
+            self.custom_mode_check.blockSignals(True)
+            self.custom_mode_check.setChecked(False)
+            self.custom_mode_check.blockSignals(False)
+            self.custom_text_input.setEnabled(False)
+
+        self._refresh_region_preview()
+
+        if self.current_exam_mode != "自定义":
             # 更新省份下拉框
             current_province = self.province_combo.currentText()
             self.province_combo.clear()
@@ -882,6 +797,7 @@ class DateSelectDialog(QDialog):
                 self.on_exam_type_selected(first_exam_type)
         else:
             self.exam_type_combo.setEnabled(False)
+            self._refresh_region_preview()
 
     def on_exam_type_selected(self, exam_type):
         """当选择考试类型时更新日期"""
@@ -893,18 +809,18 @@ class DateSelectDialog(QDialog):
         selected_date = exam_types.get(exam_type)
 
         if selected_date:
-            self.date_edit.setDate(selected_date)
-            # 同时更新日历视图的选中日期
-            self.calendar_widget.setSelectedDate(selected_date)
+            selected_date = QDate(self.exam_year, selected_date.month(), selected_date.day())
+            self.calendar_widget.setDate(selected_date)
+
+        self._refresh_region_preview()
 
     def on_calendar_date_selected(self):
         """当在日历中选择日期时更新日期编辑框"""
-        selected_date = self.calendar_widget.selectedDate()
-        self.date_edit.setDate(selected_date)
+        self._refresh_region_preview()
 
     def get_selected_date(self):
         """获取用户选择的日期"""
-        qdate = self.date_edit.date()
+        qdate = self.calendar_widget.date
         return datetime.datetime(qdate.year(), qdate.month(), qdate.day())
 
     def get_selected_exam_type(self):
@@ -919,7 +835,7 @@ class DateSelectDialog(QDialog):
 
     def get_custom_text_template(self):
         """获取用户输入的自定义文本模板"""
-        if self.custom_radio.isChecked():
+        if self.custom_mode_check.isChecked():
             return self.custom_text_input.text()
         return None
 
@@ -931,6 +847,8 @@ class CountdownWindow(QMainWindow):
         self.tray_menu = None
         self.position_menu = None
         self.display_menu = None
+        self.mode_menu = None
+        self.mode_actions = {}
         self.pause_action = None
         self.tray_icon = None
         self.last_days_left = None
@@ -984,9 +902,10 @@ class CountdownWindow(QMainWindow):
 
         # 创建标签
         self.countdown_label = QLabel()
-        font = QFont("微软雅黑", 11, QFont.Weight.Bold)
-        font.setItalic(True)
+        font = QFont("Segoe UI", 11, QFont.Weight.DemiBold)
         self.countdown_label.setFont(font)
+        self.countdown_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.countdown_label.setContentsMargins(10, 4, 10, 4)
         layout.addWidget(self.countdown_label)
 
         # 创建定时器来更新倒计时
@@ -1087,18 +1006,21 @@ class CountdownWindow(QMainWindow):
     def _update_base_dates_from_config(base_dates_dict, config_dates_dict):
         """从配置文件的日期字典更新基础日期字典"""
         for province, exam_types in config_dates_dict.items():
-            if province not in base_dates_dict:
+            if not isinstance(exam_types, dict):
+                continue
+
+            if province not in base_dates_dict or not isinstance(base_dates_dict.get(province), dict):
                 base_dates_dict[province] = {}
 
             for exam_type, date_str in exam_types.items():
                 if date_str is None:
-                    base_dates_dict[exam_type] = None
+                    base_dates_dict[province][exam_type] = None
                     continue
 
                 try:
                     # 从日期字符串(例如"2024-6-7")提取月和日
                     year, month, day = map(int, date_str.split('-'))
-                    base_dates_dict[exam_type] = (month, day)
+                    base_dates_dict[province][exam_type] = (month, day)
                 except (ValueError, TypeError) as e:
                     print(f"解析日期'{date_str}'失败: {e}")
                     continue
@@ -1221,6 +1143,12 @@ class CountdownWindow(QMainWindow):
         if self.pause_action:
             self.pause_action.setChecked(self.paused)
             self.pause_action.setText("恢复更新" if self.paused else "暂停更新")
+            self.pause_action.setIcon(FIF.PLAY.icon() if self.paused else FIF.PAUSE.icon())
+
+        # 更新模式菜单项
+        if self.mode_menu:
+            for action in self.mode_menu.actions():
+                action.setChecked(action.property("mode_value") == self.exam_mode)
 
     def show_date_select_dialog(self):
         """显示日期选择对话框"""
@@ -1284,10 +1212,21 @@ class CountdownWindow(QMainWindow):
             return
 
         # 创建托盘图标菜单
-        self.tray_menu = QMenu()
+        self.tray_menu = CheckableSystemTrayMenu("", self)
+        FluentStyleSheet.MENU.apply(self.tray_menu)
+        self.tray_menu.setFont(QFont("Segoe UI", 9))
+
+        position_group = QActionGroup(self)
+        position_group.setExclusive(True)
+        display_group = QActionGroup(self)
+        display_group.setExclusive(True)
+        mode_group = QActionGroup(self)
+        mode_group.setExclusive(True)
 
         # 添加位置设置菜单
-        self.position_menu = self.tray_menu.addMenu("窗口位置")
+        self.position_menu = RoundMenu("窗口位置", self.tray_menu)
+        FluentStyleSheet.MENU.apply(self.position_menu)
+        self.tray_menu.addMenu(self.position_menu)
 
         # 添加四个位置选项
         positions = [
@@ -1299,96 +1238,144 @@ class CountdownWindow(QMainWindow):
 
         for pos_name, pos_value in positions:
             action = QAction(pos_name, self)
+            action.setIcon(FIF.PIN.icon())
             # 使用setProperty而不是setData
             action.setProperty("position_value", pos_value)
             action.triggered.connect(self.change_position)
             action.setCheckable(True)
             action.setChecked(self.position == pos_value)
+            position_group.addAction(action)
             self.position_menu.addAction(action)
 
+        self.tray_menu.addSeparator()
+
         # 添加显示模式菜单 - 保存为类属性
-        self.display_menu = self.tray_menu.addMenu("显示模式")
+        self.display_menu = RoundMenu("显示模式", self.tray_menu)
+        FluentStyleSheet.MENU.apply(self.display_menu)
+        self.tray_menu.addMenu(self.display_menu)
 
         # 添加水印模式选项
         watermark_action = QAction("水印样式", self)
+        watermark_action.setIcon(FIF.BRUSH.icon())
         # 使用setProperty而不是setData
         watermark_action.setProperty("mode_value", "watermark")
         watermark_action.triggered.connect(self.change_display_mode)
         watermark_action.setCheckable(True)
         watermark_action.setChecked(self.display_mode == "watermark")
+        display_group.addAction(watermark_action)
         self.display_menu.addAction(watermark_action)
 
         # 添加高辨识度模式选项
         visible_action = QAction("高辨识度", self)
+        visible_action.setIcon(FIF.VIEW.icon())
         # 使用setProperty而不是setData
         visible_action.setProperty("mode_value", "visible")
         visible_action.triggered.connect(self.change_display_mode)
         visible_action.setCheckable(True)
         visible_action.setChecked(self.display_mode == "visible")
+        display_group.addAction(visible_action)
         self.display_menu.addAction(visible_action)
 
         # 添加精度控制菜单项
-        precision_menu = self.tray_menu.addMenu("设置精度")
+        precision_menu = RoundMenu("设置精度", self.tray_menu)
+        FluentStyleSheet.MENU.apply(precision_menu)
+        self.tray_menu.addMenu(precision_menu)
 
         # 添加不同的精度选项
         for i in range(9):  # 0-8位精度
             action = QAction(f"{i}位小数", self)
+            action.setIcon(FIF.CALORIES.icon())
             # 使用setProperty而不是setData
             action.setProperty("precision_value", i)  # 保存精度值
             action.triggered.connect(self.change_precision)
             precision_menu.addAction(action)
 
+        self.tray_menu.addSeparator()
+
         # 添加暂停/恢复选项
         self.pause_action = QAction("暂停更新", self)
+        self.pause_action.setIcon(FIF.PAUSE.icon())
         self.pause_action.setCheckable(True)
         self.pause_action.triggered.connect(self.toggle_pause)
         self.tray_menu.addAction(self.pause_action)
 
         # 添加切换考试类型的选项
-        modes_menu = self.tray_menu.addMenu("切换模式")
+        self.mode_menu = RoundMenu("切换模式", self.tray_menu)
+        FluentStyleSheet.MENU.apply(self.mode_menu)
+        self.tray_menu.addMenu(self.mode_menu)
 
         # 中考选项
         zhongkao_action = QAction("中考模式", self)
+        zhongkao_action.setIcon(FIF.CERTIFICATE.icon())
+        zhongkao_action.setProperty("mode_value", "中考")
         zhongkao_action.triggered.connect(lambda: self.switch_exam_mode("中考"))
         zhongkao_action.setCheckable(True)
         zhongkao_action.setChecked(self.exam_mode == "中考")
-        modes_menu.addAction(zhongkao_action)
+        mode_group.addAction(zhongkao_action)
+        self.mode_menu.addAction(zhongkao_action)
 
         # 高考选项
         gaokao_action = QAction("高考模式", self)
+        gaokao_action.setIcon(FIF.CERTIFICATE.icon())
+        gaokao_action.setProperty("mode_value", "高考")
         gaokao_action.triggered.connect(lambda: self.switch_exam_mode("高考"))
         gaokao_action.setCheckable(True)
         gaokao_action.setChecked(self.exam_mode == "高考")
-        modes_menu.addAction(gaokao_action)
+        mode_group.addAction(gaokao_action)
+        self.mode_menu.addAction(gaokao_action)
 
         # 自定义选项
         custom_action = QAction("自定义模式", self)
+        custom_action.setIcon(FIF.EDIT.icon())
+        custom_action.setProperty("mode_value", "自定义")
         custom_action.triggered.connect(lambda: self.switch_exam_mode("自定义"))
         custom_action.setCheckable(True)
         custom_action.setChecked(self.exam_mode == "自定义")
-        modes_menu.addAction(custom_action)
+        mode_group.addAction(custom_action)
+        self.mode_menu.addAction(custom_action)
+
+        self.mode_actions = {
+            "中考": zhongkao_action,
+            "高考": gaokao_action,
+            "自定义": custom_action,
+        }
+
+        self.tray_menu.addSeparator()
 
         # 添加修改日期的选项
         change_date_action = QAction("修改日期设置", self)
+        change_date_action.setIcon(FIF.CALENDAR.icon())
         change_date_action.triggered.connect(self.show_date_select_dialog)
         self.tray_menu.addAction(change_date_action)
 
         # 在退出选项前添加恢复出厂设置选项
         factory_reset_action = QAction("恢复出厂设置", self)
+        factory_reset_action.setIcon(FIF.ROTATE.icon())
         factory_reset_action.triggered.connect(self.reset_to_factory)
         self.tray_menu.addAction(factory_reset_action)
 
         # 添加退出选项
         quit_action = QAction("退出", self)
+        quit_action.setIcon(FIF.POWER_BUTTON.icon())
         quit_action.triggered.connect(QApplication.quit)
         self.tray_menu.addAction(quit_action)
 
         # 创建托盘图标 - 使用自定义图标，而不依赖系统图标
         self.tray_icon = QSystemTrayIcon(self)
 
-        # 创建一个简单的自定义图标
+        # 创建一个 Fluent 风格托盘图标
         icon_pixmap = QPixmap(16, 16)
-        icon_pixmap.fill(Qt.GlobalColor.blue)  # 简单的蓝色图标
+        icon_pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(icon_pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor(15, 108, 189))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(1, 1, 14, 14, 4, 4)
+        painter.setBrush(QColor(255, 255, 255, 230))
+        painter.drawEllipse(5, 5, 6, 6)
+        painter.setPen(QPen(QColor(15, 108, 189), 1))
+        painter.drawLine(8, 8, 10, 6)
+        painter.end()
 
         self.tray_icon.setIcon(QIcon(icon_pixmap))
         self.tray_icon.setToolTip("考试倒计时")
@@ -1551,12 +1538,14 @@ class CountdownWindow(QMainWindow):
 
         if self.paused:
             self.pause_action.setText("恢复更新")
+            self.pause_action.setIcon(FIF.PLAY.icon())
             # 确保定时器停止
             if self.timer.isActive():
                 self.timer.stop()
                 print("定时器已暂停")
         else:
             self.pause_action.setText("暂停更新")
+            self.pause_action.setIcon(FIF.PAUSE.icon())
             # 恢复时重新计算并设置定时器间隔
             self.update_timer_interval()
             # 恢复时立即更新一次
@@ -1598,12 +1587,14 @@ class CountdownWindow(QMainWindow):
 
         # 弹出日期选择对话框前保存当前模式
         self.save_config()
+        self._update_tray_menu_state()
 
         # 弹出日期选择对话框
         self.show_date_select_dialog()
 
         # 立即更新显示
         self.update_countdown()
+        self._update_tray_menu_state()
 
     def update_countdown(self):
         """更新倒计时显示"""
@@ -1644,35 +1635,24 @@ class CountdownWindow(QMainWindow):
 
             # 根据当前显示模式应用不同样式
             if self.display_mode == "watermark":
-                # 水印样式
-                if int(days_left) % 2 == 0:
-                    self.countdown_label.setStyleSheet("""
-                        color: rgba(128, 128, 128, 180); 
-                        font-weight: bold;
-                        font-style: normal;
-                        text-shadow: 1px 1px 2px rgba(255, 255, 255, 100);
-                        background: transparent;
-                        padding: 3px;
-                    """)
-                else:
-                    self.countdown_label.setStyleSheet("""
-                        color: rgba(100, 100, 100, 180); 
-                        font-weight: bold;
-                        font-style: normal;
-                        text-shadow: 1px 1px 2px rgba(255, 255, 255, 120);
-                        background: transparent;
-                        padding: 3px;
-                    """)
+                # Fluent 的轻量展示层：保持透明、弱化背景、保留高可读性
+                alpha = 150 if int(days_left) % 2 == 0 else 170
+                self.countdown_label.setStyleSheet(f"""
+                    color: rgba(32, 31, 30, {alpha});
+                    font-weight: 600;
+                    background: transparent;
+                    border: none;
+                    padding: 0px;
+                """)
             else:
-                # 高辨识度模式
+                # Fluent 的强调展示层：更高对比度与更清晰边界
                 self.countdown_label.setStyleSheet("""
-                    color: rgba(0, 0, 0, 240); 
-                    font-weight: bold;
-                    font-style: normal;
-                    text-shadow: 0px 0px 3px rgba(255, 255, 255, 200);
-                    background: rgba(255, 255, 255, 100);
-                    border-radius: 5px;
-                    padding: 5px;
+                    color: #0f1419;
+                    font-weight: 700;
+                    background: rgba(250, 249, 248, 225);
+                    border: 1px solid rgba(210, 208, 206, 210);
+                    border-radius: 8px;
+                    padding: 5px 10px;
                 """)
         except KeyboardInterrupt:
             print("更新被用户中断")
@@ -1699,6 +1679,9 @@ if __name__ == "__main__":
     # 使用全局变量以避免重复创建QApplication
     if app_instance is None:
         app_instance = QApplication(sys.argv)
+
+    setTheme(Theme.AUTO)
+    setThemeColor(QColor(15, 108, 189))
 
     # 确保应用程序不会在最后一个窗口关闭时退出
     app_instance.setQuitOnLastWindowClosed(False)
