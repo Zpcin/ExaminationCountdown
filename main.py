@@ -7,6 +7,8 @@ AI 开发作品，无人类作者版权声明
 
 # 数据与兼容版本号
 VERSION = "build9"
+DEFAULT_WATERMARK_COLOR = "#201f1e"
+DEFAULT_VISIBLE_COLOR = "#0f1419"
 
 # AI-Assisted: GitHub Copilot - 2025/04
 # 本程序完全由 AI 开发，遵循 LICENSE 中的规定
@@ -638,7 +640,8 @@ class DateSelectDialog(QDialog):
         self.window_position = getattr(parent, "position", "left_top") if parent else "left_top"
         self.display_precision = getattr(parent, "precision", 5) if parent else 5
         self.font_scale = getattr(parent, "font_scale", 100) if parent else 100
-        self.font_color = getattr(parent, "font_color", "#0f1419") if parent else "#0f1419"
+        self.watermark_color = getattr(parent, "watermark_color", DEFAULT_WATERMARK_COLOR) if parent else DEFAULT_WATERMARK_COLOR
+        self.visible_color = getattr(parent, "visible_color", DEFAULT_VISIBLE_COLOR) if parent else DEFAULT_VISIBLE_COLOR
 
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
@@ -855,6 +858,8 @@ class DateSelectDialog(QDialog):
         self.display_mode_group.addButton(self.visible_mode_radio)
         self.watermark_mode_radio.setChecked(self.display_mode == "watermark")
         self.visible_mode_radio.setChecked(self.display_mode == "visible")
+        self.watermark_mode_radio.toggled.connect(self._sync_color_controls)
+        self.visible_mode_radio.toggled.connect(self._sync_color_controls)
         mode_row.addWidget(self.watermark_mode_radio)
         mode_row.addWidget(self.visible_mode_radio)
         mode_row.addStretch(1)
@@ -886,13 +891,16 @@ class DateSelectDialog(QDialog):
 
         color_row = QHBoxLayout()
         color_row.addWidget(QLabel("字体颜色:"))
-        self.font_color_button = ColorPickerButton(QColor(self.font_color), "选择颜色", self)
+        self.font_color_button = ColorPickerButton(QColor(self._get_active_mode_color()), "选择颜色", self)
         self.font_color_button.colorChanged.connect(self.on_font_color_changed)
         color_row.addWidget(self.font_color_button)
         self.pick_screen_color_button = PushButton("从屏幕取色")
         self.pick_screen_color_button.clicked.connect(self.pick_color_from_screen)
         color_row.addWidget(self.pick_screen_color_button)
-        self.color_preview_label = QLabel(self.font_color)
+        self.restore_default_colors_button = PushButton("恢复默认颜色")
+        self.restore_default_colors_button.clicked.connect(self._restore_default_colors)
+        color_row.addWidget(self.restore_default_colors_button)
+        self.color_preview_label = QLabel(self._get_active_mode_color())
         self.color_preview_label.setObjectName("colorPreview")
         self._update_color_preview()
         color_row.addWidget(self.color_preview_label, 1)
@@ -1052,7 +1060,7 @@ class DateSelectDialog(QDialog):
     def on_font_color_changed(self, color):
         """Fluent 颜色按钮变化时同步配置"""
         if color.isValid():
-            self.font_color = color.name()
+            self._set_active_mode_color(color.name())
             self._update_color_preview()
 
     def pick_color_from_screen(self):
@@ -1065,11 +1073,30 @@ class DateSelectDialog(QDialog):
 
     def _apply_screen_picked_color(self, color):
         if color.isValid():
-            self.font_color = color.name()
+            self._set_active_mode_color(color.name())
             if hasattr(self, "font_color_button"):
                 self.font_color_button.setColor(color)
             self._update_color_preview()
         self._restore_after_screen_pick()
+
+    def _get_active_mode_color(self):
+        return self.watermark_color if self.watermark_mode_radio.isChecked() else self.visible_color
+
+    def _set_active_mode_color(self, color_hex):
+        if self.watermark_mode_radio.isChecked():
+            self.watermark_color = color_hex
+        else:
+            self.visible_color = color_hex
+
+    def _sync_color_controls(self, *_):
+        current = self._get_active_mode_color()
+        self.font_color_button.setColor(QColor(current))
+        self._update_color_preview()
+
+    def _restore_default_colors(self):
+        self.watermark_color = DEFAULT_WATERMARK_COLOR
+        self.visible_color = DEFAULT_VISIBLE_COLOR
+        self._sync_color_controls()
 
     def _restore_after_screen_pick(self):
         self.show()
@@ -1079,10 +1106,11 @@ class DateSelectDialog(QDialog):
         """刷新颜色预览"""
         if not hasattr(self, "color_preview_label"):
             return
-        self.color_preview_label.setText(self.font_color)
-        preview_text_color = "#000000" if QColor(self.font_color).lightness() > 150 else "#ffffff"
+        current_color = self._get_active_mode_color()
+        self.color_preview_label.setText(current_color)
+        preview_text_color = "#000000" if QColor(current_color).lightness() > 150 else "#ffffff"
         self.color_preview_label.setStyleSheet(
-            f"background: {self.font_color}; color: {preview_text_color}; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 8px; padding: 2px 8px;"
+            f"background: {current_color}; color: {preview_text_color}; border: 1px solid rgba(0, 0, 0, 0.15); border-radius: 8px; padding: 2px 8px;"
         )
 
     def on_region_year_changed(self, year_text):
@@ -1312,7 +1340,9 @@ class DateSelectDialog(QDialog):
         parent.position = self.window_position
         parent.precision = self.precision_combo.currentIndex()
         parent.font_scale = self.font_scale_slider.value()
-        parent.font_color = self.font_color
+        parent.watermark_color = self.watermark_color
+        parent.visible_color = self.visible_color
+        parent.font_color = self.visible_color
         if hasattr(parent, "apply_countdown_font"):
             parent.apply_countdown_font()
         if hasattr(parent, "update_timer_interval"):
@@ -1364,7 +1394,9 @@ class CountdownWindow(QMainWindow):
         self.precision = 5  # 默认5位小数
         self.display_mode = "watermark"  # 默认水印模式
         self.font_scale = 100
-        self.font_color = "#0f1419"
+        self.watermark_color = DEFAULT_WATERMARK_COLOR
+        self.visible_color = DEFAULT_VISIBLE_COLOR
+        self.font_color = self.visible_color
         self.paused = False
         self.exam_type = "文化课"  # 默认考试类型
         self.exam_mode = "中考"  # 默认考试模式（中考/高考）
@@ -1474,7 +1506,10 @@ class CountdownWindow(QMainWindow):
             self.precision = config.get('precision', self.precision)
             self.display_mode = config.get('display_mode', self.display_mode)
             self.font_scale = config.get('font_scale', self.font_scale)
-            self.font_color = config.get('font_color', self.font_color)
+            legacy_font_color = config.get('font_color', self.visible_color)
+            self.watermark_color = config.get('watermark_color', legacy_font_color)
+            self.visible_color = config.get('visible_color', legacy_font_color)
+            self.font_color = self.visible_color
             self.window_width = config.get('window_width', self.window_width)
             self.window_height = config.get('window_height', self.window_height)
             self.exam_type = config.get('exam_type', self.exam_type)
@@ -1547,7 +1582,9 @@ class CountdownWindow(QMainWindow):
                 "precision": self.precision,
                 "display_mode": self.display_mode,
                 "font_scale": self.font_scale,
-                "font_color": self.font_color,
+                "font_color": self.visible_color,
+                "watermark_color": self.watermark_color,
+                "visible_color": self.visible_color,
                 "window_width": self.window_width,
                 "window_height": self.window_height,
                 "target_date": None,
@@ -1587,7 +1624,9 @@ class CountdownWindow(QMainWindow):
                 'precision': self.precision,
                 'display_mode': self.display_mode,
                 'font_scale': self.font_scale,
-                'font_color': self.font_color,
+                'font_color': self.visible_color,
+                'watermark_color': self.watermark_color,
+                'visible_color': self.visible_color,
                 'window_width': self.window_width,
                 'window_height': self.window_height,
                 'target_date': target_date_str,
@@ -1614,7 +1653,9 @@ class CountdownWindow(QMainWindow):
             self.precision = 5
             self.display_mode = "watermark"
             self.font_scale = 100
-            self.font_color = "#0f1419"
+            self.watermark_color = DEFAULT_WATERMARK_COLOR
+            self.visible_color = DEFAULT_VISIBLE_COLOR
+            self.font_color = self.visible_color
             self.paused = False
             self.exam_type = "文化课"
             self.exam_mode = "中考"
@@ -2159,7 +2200,7 @@ class CountdownWindow(QMainWindow):
             if self.display_mode == "watermark":
                 # Fluent 的轻量展示层：保持透明、弱化背景、保留高可读性
                 alpha = 150 if int(days_left) % 2 == 0 else 170
-                r, g, b = self._hex_to_rgb(self.font_color)
+                r, g, b = self._hex_to_rgb(self.watermark_color)
                 self.countdown_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
                 self.countdown_label.setMinimumSize(0, 0)
                 self.countdown_label.setMaximumSize(16777215, 16777215)
@@ -2180,7 +2221,7 @@ class CountdownWindow(QMainWindow):
                 self.countdown_label.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
                 self.countdown_label.setFixedSize(text_width + 28, text_height + 18)
                 self.countdown_label.setStyleSheet(f"""
-                    color: {self.font_color};
+                    color: {self.visible_color};
                     font-family: 'Segoe UI', 'Microsoft YaHei';
                     font-weight: 700;
                     background: rgba(250, 249, 248, 225);
