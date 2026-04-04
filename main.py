@@ -5,11 +5,6 @@ AI 开发作品，无人类作者版权声明
 考试日期数据来源：互联网
 """
 
-# 数据与兼容版本号
-VERSION = "build9"
-DEFAULT_WATERMARK_COLOR = "#201f1e"
-DEFAULT_VISIBLE_COLOR = "#0f1419"
-
 # AI-Assisted: GitHub Copilot - 2025/04
 # 本程序完全由 AI 开发，遵循 LICENSE 中的规定
 # 详细许可证请参阅项目根目录下的 LICENSE 文件
@@ -48,8 +43,30 @@ from qfluentwidgets import (
     setTheme,
     setThemeColor,
 )
+from app_constants import (
+    DEFAULT_WATERMARK_COLOR,
+    DEFAULT_VISIBLE_COLOR,
+    ensureConfigDir,
+)
+from dates_data import (
+    baseZhongkaoDates as defaultZhongkaoDates,
+    baseGaokaoDates as defaultGaokaoDates,
+)
+from config_store import (
+    loadConfig as loadWindowConfig,
+    writeDefaultConfig as writeWindowDefaultConfig,
+    saveConfig as saveWindowConfig,
+    updateBaseDatesFromConfig as updateWindowBaseDatesFromConfig,
+)
+from countdown_logic import (
+    calculateExamYear as logicCalculateExamYear,
+    convertToFullDates as logicConvertToFullDates,
+    buildCountdownText,
+    hexToRgb as logicHexToRgb,
+    calculateTimerInterval,
+)
 
-# 初学者术语说明（尽量用生活化语言解释）
+# 术语说明
 # instance（实例）：同一个“模板类”实际创建出来的具体对象。
 # widget（控件）：界面里的一个可见部件，例如按钮、文本、下拉框。
 # tray（托盘）：屏幕右下角的小图标区域。
@@ -61,22 +78,23 @@ from qfluentwidgets import (
 # signal（信号）：Qt 中“发生了某件事”的通知机制。
 # slot（槽函数）：收到信号后要执行的处理函数。
 
-# 全局应用程序变量
 appInstance = None
+
+# 全局应用程序变量
 lockFile = None  # 添加锁文件的全局引用
 
 # 确保只运行一个实例，使用文件锁而不是socket
 def ensureSingleInstance():
     """保证程序同一时间只运行一个窗口实例，避免重复启动。"""
     global lockFile
-    
+
     try:
         # 在临时目录创建一个锁文件
         lockFilePath = os.path.join(tempfile.gettempdir(), "countdown_app.lock")
-        
+
         # 尝试以独占方式打开文件
         lockFile = open(lockFilePath, "w")
-        
+
         # 尝试对文件加锁
         # Windows上使用msvcrt
         if sys.platform == "win32":
@@ -97,7 +115,7 @@ def ensureSingleInstance():
             except IOError:
                 lockFile.close()
                 lockFile = None
-                
+
         # 如果代码执行到这里，说明锁定失败
         # 创建一个临时的QApplication实例，用于显示对话框
         global appInstance
@@ -111,21 +129,18 @@ def ensureSingleInstance():
 
         print("程序已经在运行中，退出本实例。")
         sys.exit(0)
-        
+
     except Exception as e:
         print(f"检查单例实例时出错: {e}")
         # 出错时也允许程序继续运行
         return True
 
+
 # 检查是否为单一实例
 isSingleInstance = ensureSingleInstance()
 
-# 配置文件路径：保存在用户主目录下，避免程序目录无写入权限
-CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".countdown")
-CONFIG_FILE = os.path.join(CONFIG_DIR, "countdown_config.json")
-
 # 确保配置目录存在
-os.makedirs(CONFIG_DIR, exist_ok=True)
+ensureConfigDir()
 
 
 class ScreenColorPicker(QWidget):
@@ -347,220 +362,8 @@ class DateSelectDialog(QDialog):
     """设置对话框：统一管理考试日期、显示模式、颜色和窗口位置。"""
 
     # 基础日期字典（仅保存月日），作为统一数据源
-    baseZhongkaoDates = {
-        "请选择省份或城市": {"文化课": None},
-        "北京": {
-            "文化课": (6, 24),
-            "地理生物": (6, 26),
-            "体育考试": (4, 15)
-        },
-        "上海": {
-            "文化课": (6, 14),
-            "英语听说": (5, 17),
-            "理化实验": (5, 17)
-        },
-        "天津": {
-            "文化课": (6, 21),
-            "英语听力": (5, 24)
-        },
-        "重庆": {"文化课": (6, 12)},
-        "河北": {"文化课": (6, 21)},
-        "山西": {"文化课": (6, 20)},
-        "内蒙古-呼和浩特": {"文化课": (6, 25)},
-        "内蒙古-赤峰": {"文化课": (6, 26)},
-        "辽宁": {"文化课": (6, 21)},
-        "吉林-初三": {"文化课": (6, 27)},
-        "吉林-初二": {"地理生物": (6, 30)},
-        "黑龙江-哈尔滨": {"文化课": (6, 25)},
-        "黑龙江-绥化": {"文化课": (6, 25)},
-        "江苏-南京": {"文化课": (6, 17)},
-        "江苏-宿迁": {"文化课": (6, 15)},
-        "江苏-连云港": {"文化课": (6, 14)},
-        "浙江": {"文化课": (6, 21)},
-        "浙江-杭州": {"文化课": (6, 18)},
-        "山东-济南": {"文化课": (6, 13)},
-        "山东-淄博": {"文化课": (6, 14)},
-        "安徽": {"文化课": (6, 14)},
-        "福建": {"文化课": (6, 19)},
-        "江西": {"文化课": (6, 16)},
-        "河南": {"文化课": (6, 22)},
-        "湖北-武汉": {"文化课": (6, 20)},
-        "湖北-荆州": {"文化课": (6, 20)},
-        "湖南": {"文化课": (6, 18)},
-        "广东-深圳": {"文化课": (6, 26)},
-        "广东-广州": {"文化课": (6, 30)},
-        "广西": {"文化课": (6, 24)},
-        "海南": {"文化课": (6, 25)},
-        "四川-成都": {"文化课": (6, 13)},
-        "四川-凉山": {"文化课": (6, 13)},
-        "云南": {"文化课": (6, 16)},
-        "贵州": {"文化课": (6, 21)},
-        "西藏": {"文化课": (7, 3)},
-        "陕西": {"文化课": (6, 22)},
-        "甘肃": {"文化课": (6, 16)},
-        "青海": {"文化课": (6, 16)},
-        "宁夏": {"文化课": (6, 28)},
-        "新疆": {"文化课": (6, 22)},
-    }
-
-    baseGaokaoDates = {
-        "请选择省份或城市": {"统一科目": None},
-        "新疆": {
-            "统一科目": (6, 7),
-            "文理综合": (6, 8),
-            "外语": (6, 8)
-        },
-        "西藏": {
-            "统一科目": (6, 7),
-            "文理综合": (6, 8),
-            "外语": (6, 8),
-            "藏语文": (6, 9)
-        },
-        "广东": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "江苏": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "河北": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "湖南": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "重庆": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "辽宁": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8),
-            "朝鲜语文": (6, 10)
-        },
-        "黑龙江": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "江西": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "北京": {
-            "统一科目": (6, 7),
-            "等级考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "天津": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "上海": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8),
-            "外语听说": (6, 9)
-        },
-        "浙江": {
-            "统一科目": (6, 7),
-            "技术": (6, 8),
-            "外语": (6, 8),
-            "选考科目": (6, 9)
-        },
-        "山东": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "海南": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "安徽": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "福建": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "甘肃": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "贵州": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "河南": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "湖北": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "吉林": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "内蒙古": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8),
-            "蒙古语文": (6, 10)
-        },
-        "宁夏": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "青海": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "陕西": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "四川": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "云南": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-        "广西": {
-            "统一科目": (6, 7),
-            "选考科目": (6, 9),
-            "外语": (6, 8)
-        },
-    }
+    baseZhongkaoDates = defaultZhongkaoDates
+    baseGaokaoDates = defaultGaokaoDates
 
     def __init__(self, parent=None, examMode="中考"):
         super().__init__(parent)
@@ -1169,9 +972,7 @@ class DateSelectDialog(QDialog):
     @staticmethod
     def calculateExamYear():
         """计算考试年份"""
-        currentDate = datetime.datetime.now()
-        currentYear = currentDate.year
-        return currentYear + 1 if currentDate > datetime.datetime(currentYear, 6, 1) else currentYear
+        return logicCalculateExamYear()
 
     @staticmethod
     def convertToFullDates(baseDates):
@@ -1499,189 +1300,24 @@ class CountdownWindow(QMainWindow):
     @staticmethod
     def convertToFullDates(baseDates):
         """将基础日期转换为包含年份的完整字符串表示"""
-        fullDates = {}
-        currentDate = datetime.datetime.now()
-
-        for province, examTypes in baseDates.items():
-            fullDates[province] = {}
-            for examType, dateTuple in examTypes.items():
-                if dateTuple is None:
-                    fullDates[province][examType] = None
-                    continue
-
-                month, day = dateTuple
-                # 计算正确的年份
-                year = currentDate.year
-
-                # 如果当前日期已过这个月日，使用明年
-                if currentDate > datetime.datetime(year, month, day):
-                    year += 1
-
-                # 保存为字符串格式，适合JSON存储
-                fullDates[province][examType] = f"{year}-{month}-{day}"
-
-        return fullDates
+        return logicConvertToFullDates(baseDates)
 
     def loadConfig(self):
         """从配置文件加载设置"""
-        if not os.path.exists(CONFIG_FILE):
-            print(f"配置文件不存在，将使用默认设置。配置路径: {CONFIG_FILE}")
-            self.writeDefaultConfig()
-            return
-
-        try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-
-            # 检查版本号
-            fileVersion = config.get("version", "0")
-            if fileVersion < VERSION:
-                print(f"检测到新版本({VERSION})，更新配置文件...")
-                self.writeDefaultConfig()
-                return
-
-            # 版本号相同，加载配置，并尊重配置文件中的日期设置
-            self.position = config.get('position', self.position)
-            self.precision = config.get('precision', self.precision)
-            self.displayMode = config.get('display_mode', self.displayMode)
-            self.fontScale = config.get('font_scale', self.fontScale)
-            # legacy 表示“旧版本遗留字段”，这里用于兼容历史配置。
-            legacyFontColor = config.get('font_color', self.visibleColor)
-            self.watermarkColor = config.get('watermark_color', legacyFontColor)
-            self.visibleColor = config.get('visible_color', legacyFontColor)
-            self.fontColor = self.visibleColor
-            self.windowWidth = config.get('window_width', self.windowWidth)
-            self.windowHeight = config.get('window_height', self.windowHeight)
-            self.examType = config.get('exam_type', self.examType)
-            self.examMode = config.get('exam_mode', self.examMode)
-            self.customTextTemplate = config.get('custom_text_template', self.customTextTemplate)
-
-            # 尝试加载考试日期列表
-            dates = config.get('dates', {})
-            # 将加载的日期应用到DateSelectDialog的基础数据中
-            if 'zhongkao' in dates and dates['zhongkao']:
-                self.updateBaseDatesFromConfig(DateSelectDialog.baseZhongkaoDates, dates['zhongkao'])
-            if 'gaokao' in dates and dates['gaokao']:
-                self.updateBaseDatesFromConfig(DateSelectDialog.baseGaokaoDates, dates['gaokao'])
-
-            # 加载目标日期 - 完全按照配置文件中的日期，不自动调整
-            targetDateStr = config.get('target_date')
-            if targetDateStr:
-                try:
-                    dateParts = list(map(int, targetDateStr.split('-')))
-                    self.targetDate = datetime.datetime(dateParts[0], dateParts[1], dateParts[2])
-                    print(f"按配置文件加载日期: {self.targetDate.strftime('%Y-%m-%d')}")
-                except (ValueError, IndexError) as e:
-                    print(f"日期解析错误: {e}，将使用默认日期")
-                    self.targetDate = None
-
-            print(f"成功从配置文件加载设置: {CONFIG_FILE}")
-        except Exception as e:
-            print(f"加载配置文件时出错: {e}")
-            self.targetDate = None
+        loadWindowConfig(self)
 
     @staticmethod
     def updateBaseDatesFromConfig(baseDatesDict, configDatesDict):
         """从配置文件的日期字典更新基础日期字典"""
-        for province, examTypes in configDatesDict.items():
-            if not isinstance(examTypes, dict):
-                continue
-
-            if province not in baseDatesDict or not isinstance(baseDatesDict.get(province), dict):
-                baseDatesDict[province] = {}
-
-            for examType, dateStr in examTypes.items():
-                if dateStr is None:
-                    baseDatesDict[province][examType] = None
-                    continue
-
-                try:
-                    # 从日期字符串(例如"2024-6-7")提取月和日
-                    year, month, day = map(int, dateStr.split('-'))
-                    baseDatesDict[province][examType] = (month, day)
-                except (ValueError, TypeError) as e:
-                    print(f"解析日期'{dateStr}'失败: {e}")
-                    continue
+        updateWindowBaseDatesFromConfig(baseDatesDict, configDatesDict)
 
     def writeDefaultConfig(self):
         """写入默认配置，包括版本号和考试日期列表"""
-        try:
-            # 确保配置目录存在
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-
-            # 默认考试日期列表 - 使用本类的转换方法
-            defaultDates = {
-                "zhongkao": self.convertToFullDates(DateSelectDialog.baseZhongkaoDates),
-                "gaokao": self.convertToFullDates(DateSelectDialog.baseGaokaoDates)
-            }
-
-            # 构建默认配置
-            config = {
-                "version": VERSION,
-                "position": self.position,
-                "precision": self.precision,
-                "display_mode": self.displayMode,
-                "font_scale": self.fontScale,
-                "font_color": self.visibleColor,
-                "watermark_color": self.watermarkColor,
-                "visible_color": self.visibleColor,
-                "window_width": self.windowWidth,
-                "window_height": self.windowHeight,
-                "target_date": None,
-                "exam_type": self.examType,
-                "exam_mode": self.examMode,
-                "custom_text_template": self.customTextTemplate,
-                "dates": defaultDates
-            }
-
-            # 写入配置文件
-            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-                json.dump(config, f, ensure_ascii=False, indent=4)
-
-            print(f"默认配置已写入: {CONFIG_FILE}")
-        except Exception as e:
-            print(f"写入默认配置时出错: {e}")
+        writeWindowDefaultConfig(self)
 
     def saveConfig(self):
         """保存当前设置到配置文件"""
-        try:
-            # 确保配置目录存在
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-
-            targetDateStr = None
-            if self.targetDate:
-                targetDateStr = f"{self.targetDate.year}-{self.targetDate.month}-{self.targetDate.day}"
-
-            # 保存所有考试日期列表
-            dates = {
-                "zhongkao": self.convertToFullDates(DateSelectDialog.baseZhongkaoDates),
-                "gaokao": self.convertToFullDates(DateSelectDialog.baseGaokaoDates)
-            }
-
-            config = {
-                'version': VERSION,  # 添加版本号
-                'position': self.position,
-                'precision': self.precision,
-                'display_mode': self.displayMode,
-                'font_scale': self.fontScale,
-                'font_color': self.visibleColor,
-                'watermark_color': self.watermarkColor,
-                'visible_color': self.visibleColor,
-                'window_width': self.windowWidth,
-                'window_height': self.windowHeight,
-                'target_date': targetDateStr,
-                'exam_type': self.examType,
-                'exam_mode': self.examMode,
-                'custom_text_template': self.customTextTemplate,
-                'dates': dates  # 保存考试日期列表
-            }
-
-            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-                json.dump(config, f, ensure_ascii=False, indent=4)
-
-            print(f"设置已保存到配置文件: {CONFIG_FILE}")
-        except Exception as e:
-            print(f"保存配置文件出错: {e}")
+        saveWindowConfig(self)
 
     def resetToFactory(self):
         """恢复出厂设置"""
@@ -2098,37 +1734,11 @@ class CountdownWindow(QMainWindow):
     @staticmethod
     def hexToRgb(colorHex):
         """将 #RRGGBB 颜色转换为 RGB 三元组"""
-        color = QColor(colorHex)
-        if not color.isValid():
-            color = QColor("#0f1419")
-        return color.red(), color.green(), color.blue()
+        return logicHexToRgb(colorHex)
 
     def updateTimerInterval(self):
         """根据当前精度计算并设置合适的定时器更新间隔"""
-        # 一天 = 86400 秒
-        # 对于n位小数，最小变化是 10^(-n) 天 = 10^(-n) * 86400 秒
-        # 为了观察到变化，更新间隔应小于这个值
-
-        # 计算当前精度下最小变化的时间（秒）
-        changeSeconds = 86400 * (10 ** (-self.precision))
-
-        # 根据精度级别设置不同的比例因子
-        # 这里的比例因子可以根据实际需求进行调整
-        if self.precision <= 1:
-            factor = 0.95
-        elif self.precision <= 3:
-            factor = 0.95
-        else:
-            factor = 0.9
-
-        # 计算更新间隔（毫秒）
-        interval = int(changeSeconds * factor * 1000)
-
-        # 设置更新间隔的上下限
-        minInterval = 10    # 最小10毫秒，避免过于频繁更新
-        maxInterval = 60000 # 最大60秒，确保即使是低精度也有合理的更新频率
-
-        interval = max(minInterval, min(interval, maxInterval))
+        interval, changeSeconds = calculateTimerInterval(self.precision)
 
         # 先确保定时器真的停止了
         if self.timer.isActive():
@@ -2228,26 +1838,7 @@ class CountdownWindow(QMainWindow):
                 daysLeft = timeLeft.total_seconds() / (24 * 3600)  # 转换为天数
                 self.lastDaysLeft = daysLeft
 
-            # 根据考试模式和类型构建显示文本
-            if self.examMode == "自定义":
-                # 使用自定义模板，用格式化后的天数替换{time}标记
-                timeText = f"{daysLeft:.{self.precision}f}"
-                if "{time}" in self.customTextTemplate:
-                    text = self.customTextTemplate.replace("{time}", timeText)
-                else:
-                    # 如果用户没有包含{time}标记，默认添加在文本前面
-                    text = f"{timeText} {self.customTextTemplate}"
-            elif self.examMode == "中考":
-                if self.examType in ["文化课", "地理生物", "体育考试", "英语听说", "理化实验", "英语听力"]:
-                    text = f"距离中考{self.examType if self.examType != '文化课' else ''}: {daysLeft:.{self.precision}f} 天"
-                else:
-                    text = f"距离中考: {daysLeft:.{self.precision}f} 天"
-            else:  # 高考
-                if self.examType in ["统一科目", "选考科目", "外语", "技术", "外语听说", "等级考科目",
-                                   "文理综合", "藏语文", "朝鲜语文", "蒙古语文"]:
-                    text = f"距离高考{self.examType if self.examType != '统一科目' else ''}: {daysLeft:.{self.precision}f} 天"
-                else:
-                    text = f"距离高考: {daysLeft:.{self.precision}f} 天"
+            text = buildCountdownText(daysLeft, self.precision, self.examMode, self.examType, self.customTextTemplate)
 
             self.countdownLabel.setText(text)
 
@@ -2255,7 +1846,7 @@ class CountdownWindow(QMainWindow):
             if self.displayMode == "watermark":
                 # Fluent 的轻量展示层：保持透明、弱化背景、保留高可读性
                 alpha = 150 if int(daysLeft) % 2 == 0 else 170
-                r, g, b = self.hexToRgb(self.watermarkColor)
+                r, g, b = logicHexToRgb(self.watermarkColor)
                 self.countdownLabel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
                 self.countdownLabel.setMinimumSize(0, 0)
                 self.countdownLabel.setMaximumSize(16777215, 16777215)
