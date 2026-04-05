@@ -1,122 +1,15 @@
-# AI Development Declaration and Usage License
+# Examination Countdown Project License
 
-## Version 1.0
+This project is licensed under the GNU General Public License, version 3, or any later version at your option (GPL-3.0-or-later).
 
-This program is an AI-assisted development work available for open use, with no human author copyright claims.
+In addition to the GPL grant, this repository uses a single project-wide declaration to document AI-assisted development and data-source notes. That declaration is informational and organizational; it does not add restrictions to the GPL permissions granted by the license.
 
-### I. AI Development Declaration
+Project-wide declaration:
 
-1. This program is entirely developed with AI assistance, using:
-   - GitHub Copilot
-   - Other contributing AI models
+1. AI-assisted work may be annotated in code when it helps maintainability.
+2. Exam-date and external data sources should be documented where appropriate.
+3. This project is distributed without warranty, to the extent permitted by the GPL.
 
-2. AI Contribution Annotation Requirements:
-   - Must annotate the start and end range of AI-assisted development in code
-   - Annotation format:
-     ```python
-     # AI-Assisted Start: [AI Tool Name] - [Date]
-     # AI-generated code
-     # AI-Assisted End: [AI Tool Name] - [Date]
-     ```
-   - Preserve original AI-generated comments
-   - If an entire file is AI-generated, annotate at the file header
+Full GPL terms apply to the code in this repository. If the GPL text is not already included with your distribution, obtain it from the Free Software Foundation.
 
-3. Data Source Annotation:
-   - Exam date data sources must be annotated
-   - Preserve original data provider copyright information
-   - Ensure data usage compliance
-
-### II. Usage Requirements
-
-1. Basic Principles:
-   - Program is completely open for use without authorization
-   - Protect user privacy, no collection of personal information
-   - Ensure transparency and explainability of use
-
-2. Educational Application Standards:
-   - Adhere to educational fairness principles
-   - Promote good study habits
-   - Not to be used for exam cheating
-
-3. User Responsibilities:
-   - Reasonable use of program features
-   - Timely reporting of issues and vulnerabilities
-   - Comply with relevant laws and regulations
-
-### III. Secondary Development Standards
-
-1. Development Requirements:
-   - Preserve AI development declaration and range markers
-   - Annotate start and end range for newly added AI-assisted content
-   - Maintain code readability and marker integrity
-
-2. Data Processing:
-   - Annotate data sources
-   - Preserve original data copyright information
-   - Ensure data update timeliness
-
-3. Submission Standards:
-   - State modification purposes
-   - Indicate AI tools used
-   - Provide necessary documentation
-
-### IV. Disclaimer
-
-1. This program is provided "as is" without any warranty
-2. No liability for any losses caused by use
-3. Users assume all risks associated with use
-
-### V. Distribution Rules
-
-1. Free Distribution:
-   - Can be freely shared and distributed
-   - Preserve AI development declaration
-   - Annotate data sources
-
-2. Commercial Use:
-   - Commercial use allowed
-   - Preserve AI contribution annotations
-   - Comply with data usage standards
-
-### VI. Termination Clauses
-
-1. Violation Handling:
-   - Violation of standards automatically terminates usage rights
-   - Cease use and delete program
-   - Bear corresponding responsibilities
-
-### VII. Updates and Maintenance
-
-1. Issue Reporting:
-   - Report issues through Issues
-   - Provide detailed reproduction steps
-   - Participate in program improvements
-
-2. Community Contributions:
-   - Follow contribution guidelines
-   - Submit improvement suggestions
-   - Participate in testing and maintenance
-
-### VIII. Declaration to Original Code Authors
-
-1. Expression of Apology:
-   - Express sincere apologies to original code authors who may be included in AI training data
-   - Acknowledge that AI model training may have inadvertently used others' intellectual property
-   - Respect all developers' creative labor and contributions
-
-2. Copyright Acknowledgment:
-   - Clearly acknowledge that original code authors retain full copyright to their work
-   - Willing to remove relevant parts if copyright infringement is found
-   - Support a knowledge property respectful usage environment
-
-3. Restrictions on Infringing Parts of Original Code:
-   - For personal entertainment purposes only
-   - Not to be used for any commercial purposes
-   - Users should respect the rights of original authors
-
----
-
-This program has no human author copyright restrictions, but must comply with AI development declaration and data source annotation requirements when used.
-License interpretation rights belong to the community collectively.
-
-Effective Date: April 2025
+Effective Date: April 2026
