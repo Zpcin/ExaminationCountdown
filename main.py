@@ -9,6 +9,7 @@ AI 开发作品，无人类作者版权声明
 VERSION = "build9"
 DEFAULT_WATERMARK_COLOR = "#201f1e"
 DEFAULT_VISIBLE_COLOR = "#0f1419"
+DEFAULT_FONT_FAMILY = "Microsoft YaHei"
 
 # AI-Assisted: GitHub Copilot - 2025/04
 # 本程序完全由 AI 开发，遵循 LICENSE 中的规定
@@ -20,13 +21,14 @@ import json
 import os
 import tempfile  # 导入tempfile用于创建锁文件
 from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
-                              QWidget, QSystemTrayIcon, QMenu, QDialog,
+                              QWidget, QSystemTrayIcon, QMenu, QDialog, QScrollArea,
                               QHBoxLayout, QComboBox,
                               QStackedWidget, QPushButton, QFrame,
                               QRadioButton, QButtonGroup, QLineEdit,
                               QMessageBox, QSizePolicy, QSlider)
 from PySide6.QtCore import Qt, QTimer, QDate, Signal, QRectF, QPoint
 from PySide6.QtGui import QPalette, QColor, QFont, QIcon, QAction, QActionGroup, QPixmap, QPainter, QPen, QIntValidator, QFontMetrics, QGuiApplication, QPainterPath
+from PySide6.QtGui import QFontDatabase
 from qfluentwidgets import (
     CardWidget,
     CheckableSystemTrayMenu,
@@ -655,6 +657,7 @@ class DateSelectDialog(QDialog):
         self.windowPosition = getattr(parent, "position", "left_top") if parent else "left_top"
         self.displayPrecision = getattr(parent, "precision", 5) if parent else 5
         self.fontScale = getattr(parent, "fontScale", 100) if parent else 100
+        self.fontFamily = getattr(parent, "fontFamily", DEFAULT_FONT_FAMILY) if parent else DEFAULT_FONT_FAMILY
         self.watermarkColor = getattr(parent, "watermarkColor", DEFAULT_WATERMARK_COLOR) if parent else DEFAULT_WATERMARK_COLOR
         self.visibleColor = getattr(parent, "visibleColor", DEFAULT_VISIBLE_COLOR) if parent else DEFAULT_VISIBLE_COLOR
 
@@ -882,7 +885,9 @@ class DateSelectDialog(QDialog):
         appearanceCardLayout.addLayout(modeRow)
 
         precisionRow = QHBoxLayout()
-        precisionRow.addWidget(QLabel("精度:"))
+        precisionLabel = QLabel("精度:")
+        precisionLabel.setMinimumWidth(44)
+        precisionRow.addWidget(precisionLabel)
         self.precisionCombo = ComboBox()
         FluentStyleSheet.COMBO_BOX.apply(self.precisionCombo)
         for i in range(9):
@@ -904,6 +909,34 @@ class DateSelectDialog(QDialog):
         scaleRow.addWidget(self.fontScaleSlider, 1)
         scaleRow.addWidget(self.fontScaleValueLabel)
         appearanceCardLayout.addLayout(scaleRow)
+
+        fontRow = QHBoxLayout()
+        fontLabel = QLabel("字体:")
+        fontLabel.setMinimumWidth(44)
+        fontRow.addWidget(fontLabel)
+        self.fontFamilyCombo = ComboBox()
+        FluentStyleSheet.COMBO_BOX.apply(self.fontFamilyCombo)
+        self.fontFamilyCombo.setMinimumWidth(240)
+        self.fontFamilyCombo.setMaximumWidth(360)
+        self.fontFamilyCombo.setMaxVisibleItems(12)
+        fontFamilies = sorted(QFontDatabase.families())
+        self.fontFamilyCombo.addItems(fontFamilies)
+        currentFontIndex = self.fontFamilyCombo.findText(self.fontFamily)
+        if currentFontIndex >= 0:
+            self.fontFamilyCombo.setCurrentIndex(currentFontIndex)
+        self.fontFamilyCombo.currentTextChanged.connect(self.onFontFamilyChanged)
+        self.fontFamilyCombo.currentIndexChanged.connect(lambda _index: self.onFontFamilyChanged(self.fontFamilyCombo.currentText()))
+        fontRow.addWidget(self.fontFamilyCombo)
+        self.restoreDefaultFontButton = PushButton("恢复默认字体")
+        self.restoreDefaultFontButton.clicked.connect(self.restoreDefaultFont)
+        fontRow.addWidget(self.restoreDefaultFontButton)
+        fontRow.addStretch(1)
+        appearanceCardLayout.addLayout(fontRow)
+
+        self.fontPreviewLabel = QLabel()
+        self.fontPreviewLabel.setObjectName("hintLabel")
+        appearanceCardLayout.addWidget(self.fontPreviewLabel)
+        self.updateFontPreview()
 
         colorRow = QHBoxLayout()
         colorRow.addWidget(QLabel("字体颜色:"))
@@ -962,7 +995,49 @@ class DateSelectDialog(QDialog):
 
         appearanceLayout.addWidget(appearanceCard)
         appearanceLayout.addStretch(1)
-        self.selectorStack.addWidget(appearancePage)
+        appearanceScrollArea = QScrollArea()
+        appearanceScrollArea.setWidgetResizable(True)
+        appearanceScrollArea.setFrameShape(QFrame.Shape.NoFrame)
+        appearanceScrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        appearanceScrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        appearanceScrollArea.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: 1px solid rgba(0, 0, 0, 0.06);
+                border-radius: 6px;
+                padding: 0px;
+            }
+            QScrollBar:vertical {
+                background: transparent;
+                width: 8px;
+                margin: 6px 3px 6px 0;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(120, 120, 120, 0.4);
+                border-radius: 4px;
+                min-height: 30px;
+                margin: 0px 1px 0px 1px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(90, 90, 90, 0.6);
+                border-radius: 4px;
+            }
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical,
+            QScrollBar::up-arrow:vertical,
+            QScrollBar::down-arrow:vertical {
+                height: 0px;
+                width: 0px;
+                border: none;
+                background: transparent;
+            }
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical {
+                background: transparent;
+            }
+        """)
+        appearanceScrollArea.setWidget(appearancePage)
+        self.selectorStack.addWidget(appearanceScrollArea)
 
         self.selectorNav.addItem(
             routeKey="region",
@@ -1078,6 +1153,34 @@ class DateSelectDialog(QDialog):
         if color.isValid():
             self.setActiveModeColor(color.name())
             self.updateColorPreview()
+
+    def onFontFamilyChanged(self, fontFamily):
+        """字体下拉框变化时记录字体名称。"""
+        self.fontFamily = fontFamily
+        self.updateFontPreview()
+        parent = self.parent()
+        if parent is not None:
+            parent.fontFamily = fontFamily
+            if hasattr(parent, "applyCountdownFont"):
+                parent.applyCountdownFont()
+            if hasattr(parent, "updateCountdown"):
+                parent.updateCountdown()
+
+    def updateFontPreview(self):
+        """显示当前选中字体的预览，便于立刻确认是否生效。"""
+        if not hasattr(self, "fontPreviewLabel"):
+            return
+        self.fontPreviewLabel.setFont(QFont(self.fontFamily, 14))
+        self.fontPreviewLabel.setText(f"预览: {self.fontFamily} | 0123456789 距离高考 123.45 天")
+
+    def restoreDefaultFont(self):
+        """将字体恢复为默认的微软雅黑。"""
+        defaultFontIndex = self.fontFamilyCombo.findText(DEFAULT_FONT_FAMILY)
+        if defaultFontIndex < 0:
+            self.fontFamilyCombo.addItem(DEFAULT_FONT_FAMILY)
+            defaultFontIndex = self.fontFamilyCombo.findText(DEFAULT_FONT_FAMILY)
+        self.fontFamilyCombo.setCurrentIndex(defaultFontIndex)
+        self.onFontFamilyChanged(DEFAULT_FONT_FAMILY)
 
     def pickColorFromScreen(self):
         """从屏幕任意位置拾取颜色"""
@@ -1331,6 +1434,7 @@ class DateSelectDialog(QDialog):
         oldPosition = getattr(parent, "position", "left_top")
         oldPrecision = getattr(parent, "precision", 5)
         oldFontScale = getattr(parent, "fontScale", 100)
+        oldFontFamily = getattr(parent, "fontFamily", DEFAULT_FONT_FAMILY)
         oldWatermarkColor = getattr(parent, "watermarkColor", DEFAULT_WATERMARK_COLOR)
         oldVisibleColor = getattr(parent, "visibleColor", DEFAULT_VISIBLE_COLOR)
 
@@ -1363,6 +1467,7 @@ class DateSelectDialog(QDialog):
         parent.position = self.windowPosition
         parent.precision = self.precisionCombo.currentIndex()
         parent.fontScale = self.fontScaleSlider.value()
+        parent.fontFamily = self.fontFamilyCombo.currentText()
         parent.watermarkColor = self.watermarkColor
         parent.visibleColor = self.visibleColor
         parent.fontColor = self.visibleColor
@@ -1372,6 +1477,8 @@ class DateSelectDialog(QDialog):
             parent.updateTimerInterval()
         if hasattr(parent, "updatePosition") and parent.position != oldPosition:
             parent.updatePosition()
+        if hasattr(parent, "applyCountdownFont") and parent.fontFamily != oldFontFamily:
+            parent.applyCountdownFont()
 
         appearanceChanges = []
         if parent.displayMode != oldDisplayMode:
@@ -1382,6 +1489,8 @@ class DateSelectDialog(QDialog):
             appearanceChanges.append(f"精度 {oldPrecision} -> {parent.precision}")
         if parent.fontScale != oldFontScale:
             appearanceChanges.append(f"字体缩放 {oldFontScale}% -> {parent.fontScale}%")
+        if parent.fontFamily != oldFontFamily:
+            appearanceChanges.append(f"字体 {oldFontFamily} -> {parent.fontFamily}")
         if parent.watermarkColor != oldWatermarkColor:
             appearanceChanges.append(f"水印颜色 {oldWatermarkColor} -> {parent.watermarkColor}")
         if parent.visibleColor != oldVisibleColor:
@@ -1421,6 +1530,7 @@ class CountdownWindow(QMainWindow):
         self.pauseAction = None
         self.trayIcon = None
         self.lastDaysLeft = None
+        self.dateSelectDialog = None
 
         # 设置窗口属性 - 无边框和背景透明，添加鼠标事件穿透标志
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint |
@@ -1436,6 +1546,7 @@ class CountdownWindow(QMainWindow):
         self.precision = 5  # 默认5位小数
         self.displayMode = "watermark"  # 默认水印模式
         self.fontScale = 100
+        self.fontFamily = DEFAULT_FONT_FAMILY
         self.watermarkColor = DEFAULT_WATERMARK_COLOR
         self.visibleColor = DEFAULT_VISIBLE_COLOR
         self.fontColor = self.visibleColor
@@ -1475,7 +1586,7 @@ class CountdownWindow(QMainWindow):
 
         # 创建标签
         self.countdownLabel = QLabel()
-        font = QFont("Segoe UI", 11, QFont.Weight.DemiBold)
+        font = QFont(DEFAULT_FONT_FAMILY, 11, QFont.Weight.DemiBold)
         self.countdownLabel.setFont(font)
         self.countdownLabel.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.countdownLabel.setContentsMargins(0, 0, 0, 0)
@@ -1548,6 +1659,7 @@ class CountdownWindow(QMainWindow):
             self.precision = config.get('precision', self.precision)
             self.displayMode = config.get('display_mode', self.displayMode)
             self.fontScale = config.get('font_scale', self.fontScale)
+            self.fontFamily = config.get('font_family', self.fontFamily)
             # legacy 表示“旧版本遗留字段”，这里用于兼容历史配置。
             legacyFontColor = config.get('font_color', self.visibleColor)
             self.watermarkColor = config.get('watermark_color', legacyFontColor)
@@ -1625,6 +1737,7 @@ class CountdownWindow(QMainWindow):
                 "precision": self.precision,
                 "display_mode": self.displayMode,
                 "font_scale": self.fontScale,
+                "font_family": self.fontFamily,
                 "font_color": self.visibleColor,
                 "watermark_color": self.watermarkColor,
                 "visible_color": self.visibleColor,
@@ -1667,6 +1780,7 @@ class CountdownWindow(QMainWindow):
                 'precision': self.precision,
                 'display_mode': self.displayMode,
                 'font_scale': self.fontScale,
+                'font_family': self.fontFamily,
                 'font_color': self.visibleColor,
                 'watermark_color': self.watermarkColor,
                 'visible_color': self.visibleColor,
@@ -1696,6 +1810,7 @@ class CountdownWindow(QMainWindow):
             self.precision = 5
             self.displayMode = "watermark"
             self.fontScale = 100
+            self.fontFamily = DEFAULT_FONT_FAMILY
             self.watermarkColor = DEFAULT_WATERMARK_COLOR
             self.visibleColor = DEFAULT_VISIBLE_COLOR
             self.fontColor = self.visibleColor
@@ -1745,7 +1860,21 @@ class CountdownWindow(QMainWindow):
 
     def showDateSelectDialog(self):
         """显示日期选择对话框"""
-        dialog = DateSelectDialog(self, self.examMode)
+        dialog = self.dateSelectDialog
+        if dialog is not None:
+            if dialog.isVisible():
+                dialog.raise_()
+                dialog.activateWindow()
+                return
+            if hasattr(dialog, "deleteLater") and dialog.parent() is None:
+                self.dateSelectDialog = None
+                dialog = None
+
+        if dialog is None:
+            dialog = DateSelectDialog(self, self.examMode)
+            self.dateSelectDialog = dialog
+            dialog.finished.connect(self._clearDateSelectDialog)
+
         if dialog.exec():
             selectedDate = dialog.getSelectedDate()
 
@@ -1796,6 +1925,10 @@ class CountdownWindow(QMainWindow):
                 self.targetDate = defaultDate
                 self.examType = "文化课" if self.examMode == "中考" else "统一科目"
                 print(f"用户取消设置，使用默认{self.examMode}日期: {self.targetDate.strftime('%Y-%m-%d')}")
+
+    def _clearDateSelectDialog(self):
+        """当设置窗口关闭后，清空缓存，允许下一次重新创建。"""
+        self.dateSelectDialog = None
 
     def createTrayIcon(self):
         """创建系统托盘图标和菜单"""
@@ -2085,7 +2218,7 @@ class CountdownWindow(QMainWindow):
     def applyCountdownFont(self):
         """根据字体缩放设置应用倒计时字体大小"""
         scaledSize = max(9, int(round(11 * (self.fontScale / 100))))
-        self.countdownLabel.setFont(QFont("Segoe UI", scaledSize, QFont.Weight.DemiBold))
+        self.countdownLabel.setFont(QFont(self.fontFamily, scaledSize, QFont.Weight.DemiBold))
 
     @staticmethod
     def hexToRgb(colorHex):
@@ -2244,8 +2377,11 @@ class CountdownWindow(QMainWindow):
             self.countdownLabel.setText(text)
 
             # 根据当前显示模式应用不同样式
+            scaledSize = max(9, int(round(11 * (self.fontScale / 100))))
+
             if self.displayMode == "watermark":
                 # Fluent 的轻量展示层：保持透明、弱化背景、保留高可读性
+                countdownFont = QFont(self.fontFamily, scaledSize, QFont.Weight.DemiBold)
                 alpha = 150 if int(daysLeft) % 2 == 0 else 170
                 r, g, b = self.hexToRgb(self.watermarkColor)
                 self.countdownLabel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
@@ -2253,15 +2389,15 @@ class CountdownWindow(QMainWindow):
                 self.countdownLabel.setMaximumSize(16777215, 16777215)
                 self.countdownLabel.setStyleSheet(f"""
                     color: rgba({r}, {g}, {b}, {alpha});
-                    font-family: 'Segoe UI', 'Microsoft YaHei';
-                    font-weight: 600;
                     background: transparent;
                     border: none;
                     padding: 0px;
                 """)
+                self.countdownLabel.setFont(countdownFont)
             else:
                 # Fluent 的强调展示层：更高对比度与更清晰边界
-                metrics = QFontMetrics(self.countdownLabel.font())
+                countdownFont = QFont(self.fontFamily, scaledSize, QFont.Weight.Bold)
+                metrics = QFontMetrics(countdownFont)
                 textRect = metrics.tightBoundingRect(text)
                 textWidth = textRect.width()
                 textHeight = textRect.height()
@@ -2269,13 +2405,12 @@ class CountdownWindow(QMainWindow):
                 self.countdownLabel.setFixedSize(textWidth + 28, textHeight + 18)
                 self.countdownLabel.setStyleSheet(f"""
                     color: {self.visibleColor};
-                    font-family: 'Segoe UI', 'Microsoft YaHei';
-                    font-weight: 700;
                     background: rgba(250, 249, 248, 225);
                     border: 1px solid rgba(210, 208, 206, 180);
                     border-radius: 6px;
                     padding: 4px 10px;
                 """)
+                self.countdownLabel.setFont(countdownFont)
         except KeyboardInterrupt:
             print("更新被用户中断")
         except Exception as e:
