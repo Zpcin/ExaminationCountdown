@@ -51,14 +51,13 @@ from qfluentwidgets import (
     setThemeColor,
 )
 
-# 初学者术语说明（尽量用生活化语言解释）
+# 术语说明
 # instance（实例）：同一个“模板类”实际创建出来的具体对象。
 # widget（控件）：界面里的一个可见部件，例如按钮、文本、下拉框。
 # tray（托盘）：屏幕右下角的小图标区域。
 # precision（精度）：保留小数位的多少，位数越大变化越细。
 # overlay（覆盖层）：覆盖在屏幕上的临时交互界面。
 # magnifier（放大镜）：把某一小块区域放大显示，便于精确查看。
-# pixel（像素）：屏幕颜色的最小单位点。
 # dpr（device pixel ratio，设备像素比）：逻辑坐标和真实像素的比例。
 # signal（信号）：Qt 中“发生了某件事”的通知机制。
 # slot（槽函数）：收到信号后要执行的处理函数。
@@ -68,7 +67,7 @@ appInstance = None
 lockFile = None  # 添加锁文件的全局引用
 appIconPath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.ico")
 
-# 确保只运行一个实例，使用文件锁而不是socket
+# 确保只运行一个实例，使用文件锁机制实现单实例运行，兼容 Windows 和 Unix 系统
 def ensureSingleInstance():
     """保证程序同一时间只运行一个窗口实例，避免重复启动。"""
     global lockFile
@@ -838,9 +837,14 @@ class DateSelectDialog(QDialog):
 
         self.customTextInput = LineEdit()
         self.customTextInput.setText(self.customTextTemplate)
-        self.customTextInput.setPlaceholderText("例如：距离目标仅剩{time}天")
+        self.customTextInput.setPlaceholderText("例如：{coun:YY年DD天HH小时MM分SS秒} / {now:YYYY年MM月DD日 HH:mm} / 距离目标仅剩{time}天")
         FluentStyleSheet.LINE_EDIT.apply(self.customTextInput)
         customCardLayout.addWidget(self.customTextInput)
+
+        customTextHint = QLabel()
+        customTextHint.setObjectName("hintLabel")
+        customTextHint.setText("支持：{time}，{now:YYYY年MM月DD日 HH:mm}，{coun:YY年DD天HH小时MM分SS秒}，顺序可自由排列（去前导零）")
+        customCardLayout.addWidget(customTextHint)
 
         self.customCard = customCard
         self.customTextInput.setEnabled(examMode == "自定义")
@@ -1565,8 +1569,9 @@ class CountdownWindow(QMainWindow):
         if self.targetDate is None:
             self.showDateSelectDialog()
 
-        if self.examMode == "自定义":
-            self.setWindowTitle("自定义倒计时")
+            if self.examMode == "自定义":
+                # 使用自定义模板，支持多种占位符
+                text = self.formatCustomText(self.customTextTemplate, daysLeft)
         else:
             self.setWindowTitle(f"{self.examMode}倒计时")
 
@@ -2275,6 +2280,59 @@ class CountdownWindow(QMainWindow):
         except Exception as e:
             print(f"启动定时器时出错: {e}")
 
+    def formatCustomText(self, template, daysLeft):
+        """格式化自定义文本占位符 {time} {now:YYYY年MM月DD日 HH:mm} {coun:YY,DD,HH,MM,SS} """
+        import re
+        result = template
+        result = result.replace("{time}", f"{daysLeft:.{self.precision}f}")
+        def fmt_now(m):
+            now = datetime.datetime.now()
+            fmt = m.group(1)
+            replacements = {
+                "YYYY": f"{now.year:04d}",
+                "YY": str(now.year % 100),
+                "MM": str(now.month),
+                "DD": str(now.day),
+                "HH": str(now.hour),
+                "mm": str(now.minute),
+                "SS": str(now.second),
+            }
+            for key, value in replacements.items():
+                fmt = fmt.replace(key, value)
+            return fmt
+        try:
+            result = re.sub(r'\{now:([^}]+)\}', fmt_now, result)
+        except:
+            pass
+        def fmt_coun(m):
+            totalSeconds = max(0, int(round(daysLeft * 86400)))
+            years = totalSeconds // (365 * 86400)
+            totalSeconds %= 365 * 86400
+            days = totalSeconds // 86400
+            totalSeconds %= 86400
+            hours = totalSeconds // 3600
+            totalSeconds %= 3600
+            minutes = totalSeconds // 60
+            seconds = totalSeconds % 60
+
+            replacements = {
+                "YY": str(years),
+                "DD": str(days),
+                "HH": str(hours),
+                "MM": str(minutes),
+                "SS": str(seconds),
+            }
+
+            fmt = m.group(1)
+            for key, value in replacements.items():
+                fmt = fmt.replace(key, value)
+            return fmt
+        try:
+            result = re.sub(r'\{coun:([^}]+)\}', fmt_coun, result)
+        except:
+            pass
+        return result
+
     def togglePause(self):
         """切换暂停/恢复状态"""
         self.paused = not self.paused
@@ -2355,13 +2413,8 @@ class CountdownWindow(QMainWindow):
 
             # 根据考试模式和类型构建显示文本
             if self.examMode == "自定义":
-                # 使用自定义模板，用格式化后的天数替换{time}标记
-                timeText = f"{daysLeft:.{self.precision}f}"
-                if "{time}" in self.customTextTemplate:
-                    text = self.customTextTemplate.replace("{time}", timeText)
-                else:
-                    # 如果用户没有包含{time}标记，默认添加在文本前面
-                    text = f"{timeText} {self.customTextTemplate}"
+                # 使用自定义模板，支持 {time} / {now:...} / {coun:...}
+                text = self.formatCustomText(self.customTextTemplate, daysLeft)
             elif self.examMode == "中考":
                 if self.examType in ["文化课", "地理生物", "体育考试", "英语听说", "理化实验", "英语听力"]:
                     text = f"距离中考{self.examType if self.examType != '文化课' else ''}: {daysLeft:.{self.precision}f} 天"
